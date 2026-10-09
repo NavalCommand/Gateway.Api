@@ -1,0 +1,11 @@
+syntax = "proto3";
+package navalcommand.gateway.v1;
+option csharp_namespace = "NavalCommand.Gateway.Wire";
+enum Availability { UNKNOWN = 0; EXECUTABLE = 1; BLOCKED = 2; UNSUPPORTED = 3; }
+enum Stage { STAGE_UNKNOWN = 0; REQUEST_RECEIVED = 1; REJECTED = 2; NATIVE_TASK_CREATED = 3; MOVEMENT_OBSERVED = 4; }
+message OrderEligibility { string kind = 1; Availability availability = 2; string reason = 3; string argument_semantics = 4; }
+message Waypoint { double latitude_deg = 1; double longitude_deg = 2; }
+message OrderRequest { string session_id = 1; string request_id = 2; string entity_id = 3; uint64 based_on_version = 4; oneof arguments { Waypoint waypoint = 5; } }
+message OrderResult { string session_id = 1; string request_id = 2; Stage stage = 3; string reason = 4; double sampled_at_seconds = 5; optional double displacement_m = 6; }
+message OrderDiscovery { string session_id = 1; string entity_id = 2; repeated OrderEligibility orders = 3; }
+

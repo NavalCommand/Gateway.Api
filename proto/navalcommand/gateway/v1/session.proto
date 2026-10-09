@@ -1,0 +1,6 @@
+syntax = "proto3";
+package navalcommand.gateway.v1;
+option csharp_namespace = "NavalCommand.Gateway.Wire";
+message Query { string session_id = 1; string entity_id = 2; string request_id = 3; }
+message Session { uint32 schema_version = 1; string session_id = 2; string observer_id = 3; bool ready = 4; }
+

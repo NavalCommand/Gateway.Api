@@ -1,0 +1,12 @@
+syntax = "proto3";
+package navalcommand.gateway.v1;
+option csharp_namespace = "NavalCommand.Gateway.Wire";
+import "navalcommand/gateway/v1/session.proto";
+import "navalcommand/gateway/v1/orders.proto";
+message GeoPoint { double latitude_deg = 1; double longitude_deg = 2; optional double altitude_m = 3; }
+message Unit { string id = 1; string name = 2; GeoPoint position = 3; optional double speed_mps = 4; double sampled_at_seconds = 5; repeated OrderEligibility orders = 6; }
+message Track { string id = 1; GeoPoint detected_position = 2; double sampled_at_seconds = 3; string provenance = 4; }
+message Stock { string class_key = 1; string squadron = 2; uint32 unreserved_count = 3; }
+message Facility { string entity_id = 1; repeated Stock stocks = 2; uint32 pending_operations = 3; double sampled_at_seconds = 4; }
+message WorldSnapshot { Session session = 1; uint64 observation_version = 2; double operational_seconds = 3; repeated Unit own_units = 4; repeated Track tracks = 5; repeated Facility facilities = 6; bool truncated = 7; }
+
