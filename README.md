@@ -7,7 +7,8 @@ All shared payloads are declared exactly once in proto/navalcommand/gateway/v1. 
 
 Build C++: set VCPKG_ROOT, NC_VCPKG_INSTALLED_DIR, NC_CMAKE (CMake >=4.2); run ./scripts/Build-Native.ps1. C# independently: dotnet build managed/Gateway.Api.csproj -c Release -p:Protoc=ABSOLUTE_SOURCE_BUILT_PROTOC. Run test/Check-Schema.ps1 and test/managed/Conformance.csproj write/read plus schema-roundtrip.exe. vcpkg.json pins source dependencies; CPM.cmake 0.42.0 is vendored with its license header. No game or gateway implementation dependency.
 
-Our targets request C++26, REQUIRED; MSVC 19.44 maps this to /std:c++latest. std::expected is a configure-time essential feature check. This does not imply that MSVC implements the entire evolving C++26 library.
+Our targets request C++26, REQUIRED; Clang 19.1.5 uses explicit /clang:-std=c++2c with the MSVC 19.44 standard library. std::expected is a configure-time essential feature check. This does not imply that the selected toolchain implements the entire evolving C++26 library.
 
 Generated files/build artifacts stay under ignored out/bin/obj. No game assemblies are distributed.
+
 
