@@ -6,11 +6,11 @@ using System.Linq;
 
 if (args[0] == "write")
 {
-    var r = new OrderRequest
+    var request = new OrderRequest
     {
-        SessionId = "session-µ",
+        SessionId = "session-Вµ",
         RequestId = "conformance",
-        EntityId = "opaque-α",
+        EntityId = "opaque-О±",
         BasedOnVersion = 9007199254740993UL,
         Waypoint = new Waypoint
         {
@@ -19,38 +19,39 @@ if (args[0] == "write")
         }
     };
     using var output = File.Create(args[1]);
-    r.WriteTo(output);
-    using var coded = new CodedOutputStream(output, leaveOpen: true);
-    coded.WriteTag(123, WireFormat.WireType.Varint);
-    coded.WriteUInt32(9876);
-    coded.Flush();
+    request.WriteTo(output);
+    using var unknownFieldWriter = new CodedOutputStream(output, leaveOpen: true);
+    unknownFieldWriter.WriteTag(123, WireFormat.WireType.Varint);
+    unknownFieldWriter.WriteUInt32(9876);
+    unknownFieldWriter.Flush();
     Console.WriteLine("PASS C# serialize canonical payload, UTF-8, uint64 and oneof with unknown field");
 }
 else
 {
-    var bytes = File.ReadAllBytes(args[1]);
-    var r = OrderRequest.Parser.ParseFrom(bytes);
-    if (r.SessionId != "session-µ" || r.EntityId != "opaque-α" || r.BasedOnVersion != 9007199254740993UL || r.ArgumentsCase != OrderRequest.ArgumentsOneofCase.Waypoint || r.Waypoint.LongitudeDeg != -10.37)
+    var serializedRequest = File.ReadAllBytes(args[1]);
+    var request = OrderRequest.Parser.ParseFrom(serializedRequest);
+    if (request.SessionId != "session-Вµ" || request.EntityId != "opaque-О±" || request.BasedOnVersion != 9007199254740993UL
+        || request.ArgumentsCase != OrderRequest.ArgumentsOneofCase.Waypoint || request.Waypoint.LongitudeDeg != -10.37)
     {
         throw new Exception("conformance");
     }
 
-    using var data = new MemoryStream();
-    r.WriteTo(data);
-    using (var c = new CodedOutputStream(data, leaveOpen: true))
+    using var roundtripStream = new MemoryStream();
+    request.WriteTo(roundtripStream);
+    using (var unknownFieldWriter = new CodedOutputStream(roundtripStream, leaveOpen: true))
     {
-        c.WriteTag(123, WireFormat.WireType.Varint);
-        c.WriteUInt32(9876);
-        c.Flush();
+        unknownFieldWriter.WriteTag(123, WireFormat.WireType.Varint);
+        unknownFieldWriter.WriteUInt32(9876);
+        unknownFieldWriter.Flush();
     }
 
-    if (r.CalculateSize() == data.Length)
+    if (request.CalculateSize() == roundtripStream.Length)
     {
         throw new Exception("unknown field missing");
     }
 
-    var wire = r.ToByteArray();
-    if (!wire.SequenceEqual(bytes))
+    var reserializedRequest = request.ToByteArray();
+    if (!reserializedRequest.SequenceEqual(serializedRequest))
     {
         throw new Exception("unknown field preservation");
     }

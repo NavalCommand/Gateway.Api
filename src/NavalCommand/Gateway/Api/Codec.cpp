@@ -1,136 +1,138 @@
 #include <NavalCommand/Gateway/Api/Codec.h>
 namespace NavalCommand::Gateway::Api {
-static void position(Wire::GeoPoint &p, const World::Api::Position &d) {
-	p.set_latitude_deg(d.latitudeDeg);
-	p.set_longitude_deg(d.longitudeDeg);
-	if (d.altitudeMeters) {
-		p.set_altitude_m(*d.altitudeMeters);
+static void EncodePosition(Wire::GeoPoint &wirePosition, const World::Api::Position &domainValue) {
+	wirePosition.set_latitude_deg(domainValue.latitudeDeg);
+	wirePosition.set_longitude_deg(domainValue.longitudeDeg);
+	if (domainValue.altitudeMeters) {
+		wirePosition.set_altitude_m(*domainValue.altitudeMeters);
 	}
 }
-static World::Api::Position position(const Wire::GeoPoint &p) {
-	return {p.latitude_deg(), p.longitude_deg(), p.has_altitude_m() ? std::optional<double>{p.altitude_m()} : std::nullopt};
+static World::Api::Position DecodePosition(const Wire::GeoPoint &wirePosition) {
+	return {wirePosition.latitude_deg(), wirePosition.longitude_deg(), wirePosition.has_altitude_m() ? std::optional<double>{wirePosition.altitude_m()} : std::nullopt};
 }
-Wire::WorldSnapshot Encode(const World::Api::View &d) {
-	Wire::WorldSnapshot w;
-	auto s = w.mutable_session();
-	s->set_schema_version(1);
-	s->set_session_id(d.sessionId);
-	s->set_observer_id(d.observerId);
-	s->set_ready(d.ready);
-	w.set_observation_version(d.version);
-	w.set_operational_seconds(d.operationalSeconds);
-	w.set_truncated(d.truncated);
-	for (auto &u : d.units) {
-		auto x = w.add_own_units();
-		x->set_id(u.id);
-		x->set_name(u.name);
-		position(*x->mutable_position(), u.position);
-		if (u.speedMetersPerSecond) {
-			x->set_speed_mps(*u.speedMetersPerSecond);
+Wire::WorldSnapshot Encode(const World::Api::View &domainValue) {
+	Wire::WorldSnapshot wireValue;
+	auto wireSession = wireValue.mutable_session();
+	wireSession->set_schema_version(1);
+	wireSession->set_session_id(domainValue.sessionId);
+	wireSession->set_observer_id(domainValue.observerId);
+	wireSession->set_ready(domainValue.ready);
+	wireValue.set_observation_version(domainValue.version);
+	wireValue.set_operational_seconds(domainValue.operationalSeconds);
+	wireValue.set_truncated(domainValue.truncated);
+	for (auto &domainUnit : domainValue.units) {
+		auto wireEntity = wireValue.add_own_units();
+		wireEntity->set_id(domainUnit.id);
+		wireEntity->set_name(domainUnit.name);
+		EncodePosition(*wireEntity->mutable_position(), domainUnit.position);
+		if (domainUnit.speedMetersPerSecond) {
+			wireEntity->set_speed_mps(*domainUnit.speedMetersPerSecond);
 		}
-		x->set_sampled_at_seconds(u.sampledAtSeconds);
-		for (auto &e : u.orders) {
-			auto a = x->add_orders();
-			a->set_kind(e.kind);
-			a->set_availability(static_cast<Wire::Availability>(e.availability));
-			a->set_reason(e.reason);
-			a->set_argument_semantics(e.arguments);
-		}
-	}
-	for (auto &t : d.tracks) {
-		auto x = w.add_tracks();
-		x->set_id(t.id);
-		position(*x->mutable_detected_position(), t.detectedPosition);
-		x->set_sampled_at_seconds(t.sampledAtSeconds);
-		x->set_provenance(t.provenance);
-	}
-	for (auto &f : d.facilities) {
-		auto x = w.add_facilities();
-		x->set_entity_id(f.entityId);
-		x->set_pending_operations(f.pendingOperations);
-		x->set_sampled_at_seconds(f.sampledAtSeconds);
-		for (auto &k : f.stocks) {
-			auto a = x->add_stocks();
-			a->set_class_key(k.classKey);
-			a->set_squadron(k.squadron);
-			a->set_unreserved_count(k.unreservedCount);
+		wireEntity->set_sampled_at_seconds(domainUnit.sampledAtSeconds);
+		for (auto &eligibility : domainUnit.orders) {
+			auto wireEligibility = wireEntity->add_orders();
+			wireEligibility->set_kind(eligibility.kind);
+			wireEligibility->set_availability(static_cast<Wire::Availability>(eligibility.availability));
+			wireEligibility->set_reason(eligibility.reason);
+			wireEligibility->set_argument_semantics(eligibility.arguments);
 		}
 	}
-	return w;
-}
-World::Api::View Decode(const Wire::WorldSnapshot &w) {
-	World::Api::View d;
-	d.sessionId = w.session().session_id();
-	d.observerId = w.session().observer_id();
-	d.ready = w.session().ready();
-	d.version = w.observation_version();
-	d.operationalSeconds = w.operational_seconds();
-	d.truncated = w.truncated();
-	for (auto &x : w.own_units()) {
-		World::Api::Unit u;
-		u.id = x.id();
-		u.name = x.name();
-		u.position = position(x.position());
-		if (x.has_speed_mps()) {
-			u.speedMetersPerSecond = x.speed_mps();
+	for (auto &domainTrack : domainValue.tracks) {
+		auto wireEntity = wireValue.add_tracks();
+		wireEntity->set_id(domainTrack.id);
+		EncodePosition(*wireEntity->mutable_detected_position(), domainTrack.detectedPosition);
+		wireEntity->set_sampled_at_seconds(domainTrack.sampledAtSeconds);
+		wireEntity->set_provenance(domainTrack.provenance);
+	}
+	for (auto &domainFacility : domainValue.facilities) {
+		auto wireEntity = wireValue.add_facilities();
+		wireEntity->set_entity_id(domainFacility.entityId);
+		wireEntity->set_pending_operations(domainFacility.pendingOperations);
+		wireEntity->set_sampled_at_seconds(domainFacility.sampledAtSeconds);
+		for (auto &stock : domainFacility.stocks) {
+			auto wireStock = wireEntity->add_stocks();
+			wireStock->set_class_key(stock.classKey);
+			wireStock->set_squadron(stock.squadron);
+			wireStock->set_unreserved_count(stock.unreservedCount);
 		}
-		u.sampledAtSeconds = x.sampled_at_seconds();
-		for (auto &e : x.orders()) {
-			u.orders.push_back({e.kind(), static_cast<Orders::Api::Availability>(e.availability()), e.reason(), e.argument_semantics()});
+	}
+	return wireValue;
+}
+World::Api::View Decode(const Wire::WorldSnapshot &wireValue) {
+	World::Api::View domainValue;
+	domainValue.sessionId = wireValue.session().session_id();
+	domainValue.observerId = wireValue.session().observer_id();
+	domainValue.ready = wireValue.session().ready();
+	domainValue.version = wireValue.observation_version();
+	domainValue.operationalSeconds = wireValue.operational_seconds();
+	domainValue.truncated = wireValue.truncated();
+	for (auto &wireEntity : wireValue.own_units()) {
+		World::Api::Unit domainUnit;
+		domainUnit.id = wireEntity.id();
+		domainUnit.name = wireEntity.name();
+		domainUnit.position = DecodePosition(wireEntity.position());
+		if (wireEntity.has_speed_mps()) {
+			domainUnit.speedMetersPerSecond = wireEntity.speed_mps();
 		}
-		d.units.push_back(std::move(u));
-	}
-	for (auto &x : w.tracks()) {
-		d.tracks.push_back({x.id(), position(x.detected_position()), x.sampled_at_seconds(), x.provenance()});
-	}
-	for (auto &x : w.facilities()) {
-		World::Api::Facility f;
-		f.entityId = x.entity_id();
-		f.pendingOperations = x.pending_operations();
-		f.sampledAtSeconds = x.sampled_at_seconds();
-		for (auto &k : x.stocks()) {
-			f.stocks.push_back({k.class_key(), k.squadron(), k.unreserved_count()});
+		domainUnit.sampledAtSeconds = wireEntity.sampled_at_seconds();
+		for (auto &eligibility : wireEntity.orders()) {
+			domainUnit.orders.push_back(
+				{eligibility.kind(), static_cast<Orders::Api::Availability>(eligibility.availability()), eligibility.reason(), eligibility.argument_semantics()});
 		}
-		d.facilities.push_back(std::move(f));
+		domainValue.units.push_back(std::move(domainUnit));
 	}
-	return d;
+	for (auto &wireEntity : wireValue.tracks()) {
+		domainValue.tracks.push_back({wireEntity.id(), DecodePosition(wireEntity.detected_position()), wireEntity.sampled_at_seconds(), wireEntity.provenance()});
+	}
+	for (auto &wireEntity : wireValue.facilities()) {
+		World::Api::Facility domainFacility;
+		domainFacility.entityId = wireEntity.entity_id();
+		domainFacility.pendingOperations = wireEntity.pending_operations();
+		domainFacility.sampledAtSeconds = wireEntity.sampled_at_seconds();
+		for (auto &stock : wireEntity.stocks()) {
+			domainFacility.stocks.push_back({stock.class_key(), stock.squadron(), stock.unreserved_count()});
+		}
+		domainValue.facilities.push_back(std::move(domainFacility));
+	}
+	return domainValue;
 }
-Wire::OrderRequest Encode(const Orders::Api::Request &d) {
-	Wire::OrderRequest w;
-	w.set_session_id(d.sessionId);
-	w.set_request_id(d.requestId);
-	w.set_entity_id(d.entityId);
-	w.set_based_on_version(d.basedOnVersion);
-	if (d.waypoint) {
-		w.mutable_waypoint()->set_latitude_deg(d.waypoint->latitudeDeg);
-		w.mutable_waypoint()->set_longitude_deg(d.waypoint->longitudeDeg);
+Wire::OrderRequest Encode(const Orders::Api::Request &domainValue) {
+	Wire::OrderRequest wireValue;
+	wireValue.set_session_id(domainValue.sessionId);
+	wireValue.set_request_id(domainValue.requestId);
+	wireValue.set_entity_id(domainValue.entityId);
+	wireValue.set_based_on_version(domainValue.basedOnVersion);
+	if (domainValue.waypoint) {
+		wireValue.mutable_waypoint()->set_latitude_deg(domainValue.waypoint->latitudeDeg);
+		wireValue.mutable_waypoint()->set_longitude_deg(domainValue.waypoint->longitudeDeg);
 	}
-	return w;
+	return wireValue;
 }
-Orders::Api::Request Decode(const Wire::OrderRequest &w) {
-	Orders::Api::Request d{w.session_id(), w.request_id(), w.entity_id(), w.based_on_version()};
-	if (w.has_waypoint()) {
-		d.waypoint = Orders::Api::Waypoint{w.waypoint().latitude_deg(), w.waypoint().longitude_deg()};
+Orders::Api::Request Decode(const Wire::OrderRequest &wireValue) {
+	Orders::Api::Request domainValue{wireValue.session_id(), wireValue.request_id(), wireValue.entity_id(), wireValue.based_on_version()};
+	if (wireValue.has_waypoint()) {
+		domainValue.waypoint = Orders::Api::Waypoint{wireValue.waypoint().latitude_deg(), wireValue.waypoint().longitude_deg()};
 	}
-	return d;
+	return domainValue;
 }
-Wire::OrderResult Encode(const Orders::Api::Result &d) {
-	Wire::OrderResult w;
-	w.set_session_id(d.sessionId);
-	w.set_request_id(d.requestId);
-	w.set_stage(static_cast<Wire::Stage>(d.stage));
-	w.set_reason(d.reason);
-	w.set_sampled_at_seconds(d.sampledAtSeconds);
-	if (d.displacementMeters) {
-		w.set_displacement_m(*d.displacementMeters);
+Wire::OrderResult Encode(const Orders::Api::Result &domainValue) {
+	Wire::OrderResult wireValue;
+	wireValue.set_session_id(domainValue.sessionId);
+	wireValue.set_request_id(domainValue.requestId);
+	wireValue.set_stage(static_cast<Wire::Stage>(domainValue.stage));
+	wireValue.set_reason(domainValue.reason);
+	wireValue.set_sampled_at_seconds(domainValue.sampledAtSeconds);
+	if (domainValue.displacementMeters) {
+		wireValue.set_displacement_m(*domainValue.displacementMeters);
 	}
-	return w;
+	return wireValue;
 }
-Orders::Api::Result Decode(const Wire::OrderResult &w) {
-	Orders::Api::Result d{w.session_id(), w.request_id(), static_cast<Orders::Api::Stage>(w.stage()), w.reason(), w.sampled_at_seconds()};
-	if (w.has_displacement_m()) {
-		d.displacementMeters = w.displacement_m();
+Orders::Api::Result Decode(const Wire::OrderResult &wireValue) {
+	Orders::Api::Result domainValue{
+		wireValue.session_id(), wireValue.request_id(), static_cast<Orders::Api::Stage>(wireValue.stage()), wireValue.reason(), wireValue.sampled_at_seconds()};
+	if (wireValue.has_displacement_m()) {
+		domainValue.displacementMeters = wireValue.displacement_m();
 	}
-	return d;
+	return domainValue;
 }
 } // namespace NavalCommand::Gateway::Api

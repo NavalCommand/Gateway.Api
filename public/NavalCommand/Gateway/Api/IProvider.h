@@ -1,15 +1,10 @@
 #pragma once
+#include <NavalCommand/Gateway/Api/Error.h>
 #include <NavalCommand/Orders/Api/Order.h>
 #include <NavalCommand/World/Api/View.h>
 #include <expected>
 namespace NavalCommand::Gateway::Api {
-enum class Error {
-	NotReady,
-	Busy,
-	TooLarge,
-	Malformed,
-	Stopped
-};
+
 // Thread-safe I/O-side provider. Returns owned values. Never calls a simulator.
 // Submission only acknowledges mailbox receipt; native acceptance is
 // asynchronous.
