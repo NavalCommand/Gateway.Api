@@ -1,0 +1,5 @@
+find_package(GTest CONFIG REQUIRED)
+add_executable(api-tests NavalCommand/Gateway/Api/CodecTest.cpp)
+target_link_libraries(api-tests PRIVATE Gateway.Api GTest::gtest_main)
+NavalCommandConfigureTarget(api-tests)
+add_test(NAME codec COMMAND api-tests)

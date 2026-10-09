@@ -1,14 +1,21 @@
 # Gateway.Api 0.1.0
-Canonical payload serialization and host-neutral provider communication contracts.
 
-Operational meaning lives in the logical World.Api and Orders.Api header namespaces here; neither domain depends on generated types. They are small real contracts, not extra empty repositories. Codec is the transport boundary. IProvider returns owned domain values and runs on I/O threads; it must never call a simulator. Latitude/longitude use degrees, distance/height meters, speed meters/second, time seconds since session start.
+Canonical payloads and host-neutral provider/domain contracts. No game or gateway implementation dependency. The schema remains unchanged from Task 004, under proto/navalcommand/gateway/v1. C# and C++ generate from the same files using protoc 33.4; managed Google.Protobuf is 3.33.4. Schema version 1, optional presence, zero unknown enums and direct unknown-field preservation remain unchanged. Domain mapping understands schema 1 only.
 
-All shared payloads are declared exactly once in proto/navalcommand/gateway/v1. C# and C++ codegen uses the same pinned source-built protoc 33.4 (vcpkg protobuf 6.33.4#2); managed runtime Google.Protobuf 3.33.4. Wire schema version 1: additions use fresh field numbers; removals require reserved names/numbers and reviewed baseline migration. Enum zero means unknown. Proto3 optional fields preserve absent versus zero. Unknown fields survive direct generated-code serialization; domain mapping deliberately understands schema 1 only.
+The native production library/codec is defined in src/CMakeLists.txt. Public domain/transport headers retain their existing paths. app/schema-roundtrip.exe and test/api-tests.exe are built beneath the selected o/ directory. Managed build: dotnet build managed/Gateway.Api.csproj -c Release -p:Protoc=ABSOLUTE_SOURCE_BUILT_PROTOC. Existing Check-Schema and managed Conformance tests are retained.
 
-Build C++: set VCPKG_ROOT, NC_VCPKG_INSTALLED_DIR, NC_CMAKE (CMake >=4.2); run ./scripts/Build-Native.ps1. C# independently: dotnet build managed/Gateway.Api.csproj -c Release -p:Protoc=ABSOLUTE_SOURCE_BUILT_PROTOC. Run test/Check-Schema.ps1 and test/managed/Conformance.csproj write/read plus schema-roundtrip.exe. vcpkg.json pins source dependencies; CPM.cmake 0.42.0 is vendored with its license header. No game or gateway implementation dependency.
+## Build structure (Task 005)
 
-Our targets request C++26, REQUIRED; Clang 19.1.5 uses explicit /clang:-std=c++2c with the MSVC 19.44 standard library. std::expected is a configure-time essential feature check. This does not imply that the selected toolchain implements the entire evolving C++26 library.
+Root CMakeLists.txt initializes/composes only. Shared policy/resolution lives in the independent Build.CMake repository, fetched as ncbuild. Production libraries are defined in src/, mocks in mock/, tests in test/, applications in app/. Namespace paths and existing target names are preserved.
 
-Generated files/build artifacts stay under ignored out/bin/obj. No game assemblies are distributed.
+Enter a VS 2026 x64 developer shell, set standard VCPKG_ROOT, and use CMake 4.2+ and Ninja:
 
+```powershell
+cmake --preset windows-msvc-release -DFETCHCONTENT_SOURCE_DIR_NCBUILD=/absolute/path/to/Build.CMake
+cmake --build o/windows-msvc-release --parallel 8
+ctest --test-dir o/windows-msvc-release --output-on-failure --no-tests=error
+```
 
+The bootstrap option is unnecessary once Build.CMake is available at its declared Git URL. Optional ignored Build.Local.cmake registers canonical module URLs with NavalCommandSetDependencyPath(URL, absoluteCheckout); it is read once at the top level before declaration and applies transitively. Without a registration the declared Git URL and main reference are used. There is no workspace-root environment variable or implicit sibling lookup. External dependencies remain source-built vcpkg manifest packages. An already provisioned prefix can use standard -DVCPKG_INSTALLED_DIR=... -DVCPKG_MANIFEST_INSTALL=OFF cache options. See the parent project's Docs/MODULE_STRUCTURE.md for exact verified commands and limits.
+
+Presets contain configurePresets only, windows-msvc-debug/release and linux-clang-debug/release where applicable. Output is o/${presetName}. C++26 policy is centralized; MSVC uses /std:c++latest for available features. No full C++26 conformance claim. Build outputs, Build.Local.cmake and CMakeUserPresets.json are ignored. No proprietary game binaries are included.
