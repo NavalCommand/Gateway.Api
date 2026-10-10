@@ -1,6 +1,7 @@
 #pragma once
 #include <NavalCommand/Gateway/Api/Error.h>
-#include <NavalCommand/Orders/Api/Order.h>
+#include <NavalCommand/Orders/Api/Result.h>
+#include <NavalCommand/Orders/Api/Request.h>
 #include <NavalCommand/World/Api/View.h>
 #include <expected>
 
