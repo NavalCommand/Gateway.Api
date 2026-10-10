@@ -1,0 +1,6 @@
+NavalCommandManagedProtoc(protocPath)
+NavalCommandManagedContext("Protoc=${protocPath}")
+NavalCommandAddManagedProject(Gateway.Api.Managed Gateway.Api.csproj)
+if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING)
+    NavalCommandAddManagedProject(api-conformance "../test/managed/Conformance.csproj")
+endif()

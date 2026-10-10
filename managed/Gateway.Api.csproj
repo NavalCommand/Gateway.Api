@@ -1,13 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <RequiresManagedContext>true</RequiresManagedContext>
     <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>12</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Google.Protobuf" Version="3.33.4" />
+    <PackageReference Include="Google.Protobuf" Version="3.33.4" GeneratePathProperty="true" />
   </ItemGroup>
   <Target Name="CanonicalCodegen" BeforeTargets="BeforeCompile">
-    <Error Condition="'$(Protoc)' == ''" Text="Pass pinned source-built Protoc path." />
+    <Error Condition="'$(Protoc)' == ''" Text="Configure CMake to resolve the pinned source-built protoc." />
     <MakeDir Directories="$(IntermediateOutputPath)generated" />
     <Exec Command="&quot;$(Protoc)&quot; --proto_path=&quot;$(MSBuildProjectDirectory)/../proto&quot; --csharp_out=&quot;$(IntermediateOutputPath)generated&quot; &quot;$(MSBuildProjectDirectory)/../proto/navalcommand/gateway/v1/session.proto&quot; &quot;$(MSBuildProjectDirectory)/../proto/navalcommand/gateway/v1/orders.proto&quot; &quot;$(MSBuildProjectDirectory)/../proto/navalcommand/gateway/v1/world.proto&quot; &quot;$(MSBuildProjectDirectory)/../proto/navalcommand/gateway/v1/incidents.proto&quot;" />
     <ItemGroup>

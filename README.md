@@ -5,7 +5,7 @@ Project-wide documentation is maintained in the separate **Docs Git repository**
 
 Canonical payloads and host-neutral provider/domain contracts. No game or gateway implementation dependency. The schema remains unchanged from Task 004, under proto/navalcommand/gateway/v1. C# and C++ generate from the same files using protoc 33.4; managed Google.Protobuf is 3.33.4. Schema version 1, optional presence, zero unknown enums and direct unknown-field preservation remain unchanged. Domain mapping understands schema 1 only.
 
-The native production library/codec is defined in src/CMakeLists.txt. Public domain/transport headers retain their existing paths. app/schema-roundtrip.exe and test/api-tests.exe are built beneath the selected o/ directory. Managed build: dotnet build managed/Gateway.Api.csproj -c Release -p:Protoc=ABSOLUTE_SOURCE_BUILT_PROTOC. Existing Check-Schema and managed Conformance tests are retained.
+The native production library/codec is defined in src/CMakeLists.txt. Public domain/transport headers retain their existing paths. app/schema-roundtrip.exe and test/api-tests.exe are built beneath the selected o/ directory. Managed build: dotnet build managed/Gateway.Api.csproj -c Release (after CMake configure, no extra properties). Existing Check-Schema and managed Conformance tests are retained.
 
 ## Build structure
 
@@ -26,3 +26,9 @@ Presets contain configurePresets only, windows-msvc-debug/release and linux-clan
 Windows target and host dependencies use `x64-windows-static`, matching `/MT` in Release and `/MTd` in Debug. Reconfigure with `--fresh` and relink when migrating earlier dynamic-CRT artifacts.
 
 Public aggregate member spellings remain source compatible with existing clients. Purpose-specific headers define individual types; `Order.h` and `View.h` retain their previous include surface. Legacy camelCase public fields are deliberate compatibility exceptions to the owner's PascalCase rule. Generated Protobuf types and methods retain generator-defined names.
+
+## Managed build integration
+
+Follow the authoritative [managed build policy](../Docs/MANAGED_BUILD.md). One CMake configure resolves internal source dependencies and persists each managed repository's ignored `o/managed/Build.Context.props`. Then ordinary `.csproj` builds in Visual Studio/Rider or `dotnet build ... -c Debug/Release` use those sources through real ProjectReferences without extra properties or another configure. Change source/tool/game-reference locations by reconfiguring, not by editing generated projects. Conflicting contexts require explicit `-DNAVALCOMMAND_REPLACE_MANAGED_CONTEXT=ON`; existing CMake consumers must then be reconfigured.
+
+All repository-owned generated files stay under `o/`: native preset directories, per-project MSBuild `o/managed/<project>/{bin,obj}/` directories and mod `o/package`/`o/harness` stages. MSBuild preserves configuration/platform/framework dimensions. The shared helper discovers managed/CMakeLists.txt and invokes only the requested top-level project; MSBuild owns NuGet and transitive compilation. Game-reference absence blocks only requested game-dependent projects.

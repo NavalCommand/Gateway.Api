@@ -1,0 +1,7 @@
+<Project>
+  <Import Project="$(NavalCommandManagedTargets)" Condition="Exists('$(NavalCommandManagedTargets)')" />
+  <Target Name="ValidateManagedContext" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(RequiresManagedContext)' == 'true' and !Exists('$(NavalCommandManagedTargets)')"
+           Text="Configure this repository with CMake first to resolve the managed build context." />
+  </Target>
+</Project>
