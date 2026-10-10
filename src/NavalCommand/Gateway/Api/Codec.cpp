@@ -1,4 +1,5 @@
 #include <NavalCommand/Gateway/Api/Codec.h>
+#include <NavalCommand/Orders/Api/RouteCommand.h>
 
 namespace NavalCommand::Gateway::Api
 {
@@ -200,11 +201,11 @@ namespace NavalCommand::Gateway::Api
 			launch->set_loadout(domainValue.facilityLaunch->loadout);
 			launch->set_count(domainValue.facilityLaunch->count);
 		}
-		if (domainValue.waypoint)
+		if (domainValue.routeCommand)
 		{
-			wireValue.mutable_waypoint()->set_latitude_deg(domainValue.waypoint->latitudeDeg);
-			wireValue.mutable_waypoint()->set_longitude_deg(domainValue.waypoint->longitudeDeg);
-			wireValue.mutable_waypoint()->set_route_mode(static_cast<Wire::RouteMode>(domainValue.waypoint->routeMode));
+			wireValue.mutable_waypoint()->set_latitude_deg(domainValue.routeCommand->latitudeDeg);
+			wireValue.mutable_waypoint()->set_longitude_deg(domainValue.routeCommand->longitudeDeg);
+			wireValue.mutable_waypoint()->set_route_mode(static_cast<Wire::RouteMode>(domainValue.routeCommand->routeMode));
 		}
 		return wireValue;
 	}
@@ -219,7 +220,7 @@ namespace NavalCommand::Gateway::Api
 		}
 		if (wireValue.has_waypoint())
 		{
-			domainValue.waypoint = Orders::Api::Waypoint{
+			domainValue.routeCommand = Orders::Api::RouteCommand{
 				wireValue.waypoint().latitude_deg(),
 				wireValue.waypoint().longitude_deg(),
 				static_cast<Orders::Api::RouteMode>(wireValue.waypoint().route_mode())
@@ -278,4 +279,4 @@ namespace NavalCommand::Gateway::Api
 		}
 		return domainValue;
 	}
-} // namespace NavalCommand::Gateway::Api
+}

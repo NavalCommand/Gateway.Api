@@ -1,4 +1,5 @@
 #include <NavalCommand/Gateway/Api/Codec.h>
+#include <NavalCommand/Orders/Api/RouteCommand.h>
 #include <gtest/gtest.h>
 using namespace NavalCommand;
 TEST(Codec, DomainDoesNotRequireTransport)
@@ -28,10 +29,12 @@ TEST(Codec, OptionalZeroAndUnknownEnum)
 TEST(Codec, RouteModesAndReceipts)
 {
 	using namespace Orders::Api;
-	Request legacy{"session", "legacy", "unit", 7, Waypoint{62, -10}};
+	Request legacy{"session", "legacy", "unit", 7, RouteCommand{62, -10}};
 	EXPECT_EQ(Gateway::Api::Encode(legacy).waypoint().route_mode(), 0);
-	legacy.waypoint->routeMode = RouteMode::AppendWaypoint;
-	EXPECT_EQ(Gateway::Api::Decode(Gateway::Api::Encode(legacy)).waypoint->routeMode, RouteMode::AppendWaypoint);
+	legacy.routeCommand->routeMode = RouteMode::AppendWaypoint;
+	auto decodedCommand = Gateway::Api::Decode(Gateway::Api::Encode(legacy));
+	ASSERT_TRUE(decodedCommand.routeCommand);
+	EXPECT_EQ(decodedCommand.routeCommand->routeMode, RouteMode::AppendWaypoint);
 	Result result{"session", "id", Stage::RouteMutated, "sequence_verified"};
 	result.routeBefore.push_back({62, -10, "A"});
 	result.routeAfter = {{62, -10, "A"}, {63, -11, "B"}};
@@ -49,7 +52,7 @@ TEST(Codec, FacilityLaunchAndGroundedPresence)
 	request.facilityLaunch = Orders::Api::FacilityLaunch{"class", "squadron", "loadout", 1};
 	auto decoded = Gateway::Api::Decode(Gateway::Api::Encode(request));
 	ASSERT_TRUE(decoded.facilityLaunch);
-	EXPECT_FALSE(decoded.waypoint);
+	EXPECT_FALSE(decoded.routeCommand);
 	EXPECT_EQ(decoded.facilityLaunch->loadout, "loadout");
 	EXPECT_EQ(decoded.facilityLaunch->count, 1);
 	World::Api::View view;

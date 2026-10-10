@@ -1,3 +1,7 @@
+add_executable(schema-roundtrip NavalCommand/Gateway/Api/SchemaRoundtrip.cpp)
+target_link_libraries(schema-roundtrip PRIVATE Gateway.Api)
+NavalCommandConfigureTarget(schema-roundtrip)
+
 find_package(GTest CONFIG REQUIRED)
 add_executable(api-tests NavalCommand/Gateway/Api/CodecTest.cpp)
 target_link_libraries(api-tests PRIVATE Gateway.Api GTest::gtest_main)
