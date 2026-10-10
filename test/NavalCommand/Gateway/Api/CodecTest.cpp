@@ -1,7 +1,8 @@
 #include <NavalCommand/Gateway/Api/Codec.h>
 #include <gtest/gtest.h>
 using namespace NavalCommand;
-TEST(Codec, DomainDoesNotRequireTransport) {
+TEST(Codec, DomainDoesNotRequireTransport)
+{
 	World::Api::View domainView;
 	domainView.sessionId = "opaque";
 	domainView.ready = true;
@@ -13,7 +14,9 @@ TEST(Codec, DomainDoesNotRequireTransport) {
 	EXPECT_FALSE(wireValue.own_units(0).has_speed_mps());
 	EXPECT_EQ(roundtripValue.units[0].orders[0].kind, "set_waypoint");
 }
-TEST(Codec, OptionalZeroAndUnknownEnum) {
+
+TEST(Codec, OptionalZeroAndUnknownEnum)
+{
 	navalcommand::gateway::v1::OrderResult wireValue;
 	wireValue.set_displacement_m(0);
 	wireValue.set_stage(static_cast<navalcommand::gateway::v1::Stage>(99));
@@ -21,7 +24,9 @@ TEST(Codec, OptionalZeroAndUnknownEnum) {
 	EXPECT_TRUE(roundtripValue.has_displacement_m());
 	EXPECT_EQ(roundtripValue.stage(), 99);
 }
-TEST(Codec, RouteModesAndReceipts) {
+
+TEST(Codec, RouteModesAndReceipts)
+{
 	using namespace Orders::Api;
 	Request legacy{"session", "legacy", "unit", 7, Waypoint{62, -10}};
 	EXPECT_EQ(Gateway::Api::Encode(legacy).waypoint().route_mode(), 0);
@@ -37,7 +42,9 @@ TEST(Codec, RouteModesAndReceipts) {
 	EXPECT_EQ(decoded.routeBefore[0].latitudeDeg, 62);
 	EXPECT_EQ(decoded.stage, Stage::RouteMutated);
 }
-TEST(Codec, FacilityLaunchAndGroundedPresence) {
+
+TEST(Codec, FacilityLaunchAndGroundedPresence)
+{
 	Orders::Api::Request request{"session", "launch", "facility", 1};
 	request.facilityLaunch = Orders::Api::FacilityLaunch{"class", "squadron", "loadout", 1};
 	auto decoded = Gateway::Api::Decode(Gateway::Api::Encode(request));
