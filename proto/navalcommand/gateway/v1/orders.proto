@@ -13,6 +13,22 @@ enum Stage {
   REJECTED = 2;
   NATIVE_TASK_CREATED = 3;
   MOVEMENT_OBSERVED = 4;
+  ROUTE_MUTATED = 5;
+  EXECUTION_UNKNOWN = 6;
+  PREPARING = 7;
+  AIRCRAFT_SPAWNED = 8;
+  AIRBORNE = 9;
+}
+// Omitted mode preserves the legacy idle-only command; never replaces a route.
+enum RouteMode {
+  LEGACY_IDLE = 0;
+  REPLACE_ROUTE = 1;
+  APPEND_WAYPOINT = 2;
+}
+message RoutePoint {
+  double latitude_deg = 1;
+  double longitude_deg = 2;
+  string label = 3;
 }
 message OrderEligibility {
   string kind = 1;
@@ -23,6 +39,7 @@ message OrderEligibility {
 message Waypoint {
   double latitude_deg = 1;
   double longitude_deg = 2;
+  RouteMode route_mode = 3;
 }
 message OrderRequest {
   string session_id = 1;
@@ -31,6 +48,7 @@ message OrderRequest {
   uint64 based_on_version = 4;
   oneof arguments {
     Waypoint waypoint = 5;
+    FacilityLaunch facility_launch = 6;
   }
 }
 message OrderResult {
@@ -40,6 +58,16 @@ message OrderResult {
   string reason = 4;
   double sampled_at_seconds = 5;
   optional double displacement_m = 6;
+  repeated RoutePoint route_before = 7;
+  repeated RoutePoint route_after = 8;
+  RouteMode route_mode = 9;
+  string spawned_entity_id = 10;
+}
+message FacilityLaunch {
+  string class_key = 1;
+  string squadron = 2;
+  string loadout = 3;
+  uint32 count = 4;
 }
 message OrderDiscovery {
   string session_id = 1;

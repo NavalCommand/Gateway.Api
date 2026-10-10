@@ -15,7 +15,8 @@ if (args[0] == "write")
         Waypoint = new Waypoint
         {
             LatitudeDeg = 61.96,
-            LongitudeDeg = 0
+            LongitudeDeg = 0,
+            RouteMode = RouteMode.AppendWaypoint
         }
     };
     using var output = File.Create(args[1]);
@@ -31,7 +32,8 @@ else
     var serializedRequest = File.ReadAllBytes(args[1]);
     var request = OrderRequest.Parser.ParseFrom(serializedRequest);
     if (request.SessionId != "session-Вµ" || request.EntityId != "opaque-О±" || request.BasedOnVersion != 9007199254740993UL
-        || request.ArgumentsCase != OrderRequest.ArgumentsOneofCase.Waypoint || request.Waypoint.LongitudeDeg != -10.37)
+        || request.ArgumentsCase != OrderRequest.ArgumentsOneofCase.Waypoint || request.Waypoint.LongitudeDeg != -10.37
+        || request.Waypoint.RouteMode != RouteMode.AppendWaypoint)
     {
         throw new Exception("conformance");
     }

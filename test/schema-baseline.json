@@ -10,7 +10,8 @@
     "1": "string:session_id",
     "5": "Waypoint:waypoint",
     "2": "string:request_id",
-    "3": "string:entity_id"
+    "3": "string:entity_id",
+    "6": "FacilityLaunch:facility_launch"
   },
   "OrderDiscovery": {
     "1": "string:session_id",
@@ -30,7 +31,8 @@
   },
   "Waypoint": {
     "1": "double:latitude_deg",
-    "2": "double:longitude_deg"
+    "2": "double:longitude_deg",
+    "3": "RouteMode:route_mode"
   },
   "Incident": {
     "4": "string:subject_id",
@@ -56,12 +58,17 @@
     "1": "string:session_id",
     "4": "string:reason",
     "3": "Stage:stage",
-    "5": "double:sampled_at_seconds"
+    "5": "double:sampled_at_seconds",
+    "7": "RoutePoint:route_before",
+    "8": "RoutePoint:route_after",
+    "9": "RouteMode:route_mode",
+    "10": "string:spawned_entity_id"
   },
   "Stock": {
     "1": "string:class_key",
     "2": "string:squadron",
-    "3": "uint32:unreserved_count"
+    "3": "uint32:unreserved_count",
+    "4": "LaunchOption:launch_options"
   },
   "WorldSnapshot": {
     "2": "uint64:observation_version",
@@ -78,12 +85,34 @@
     "1": "string:id",
     "4": "double:speed_mps",
     "3": "GeoPoint:position",
-    "5": "double:sampled_at_seconds"
+    "5": "double:sampled_at_seconds",
+    "7": "RoutePoint:planned_route",
+    "8": "bool:route_inspected",
+    "9": "bool:airborne"
   },
   "Facility": {
     "4": "double:sampled_at_seconds",
     "1": "string:entity_id",
     "2": "Stock:stocks",
-    "3": "uint32:pending_operations"
+    "3": "uint32:pending_operations",
+    "5": "uint32:onboard_count",
+    "6": "uint32:reserved_count",
+    "7": "uint32:cooldown_count"
+  },
+  "RoutePoint": {
+    "1": "double:latitude_deg",
+    "2": "double:longitude_deg",
+    "3": "string:label"
+  },
+  "FacilityLaunch": {
+    "1": "string:class_key",
+    "2": "string:squadron",
+    "3": "string:loadout",
+    "4": "uint32:count"
+  },
+  "LaunchOption": {
+    "1": "string:loadout",
+    "2": "Availability:availability",
+    "3": "string:reason"
   }
 }

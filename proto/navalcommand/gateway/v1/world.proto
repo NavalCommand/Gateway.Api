@@ -15,6 +15,9 @@ message Unit {
   optional double speed_mps = 4;
   double sampled_at_seconds = 5;
   repeated OrderEligibility orders = 6;
+  repeated RoutePoint planned_route = 7;
+  bool route_inspected = 8;
+  optional bool airborne = 9;
 }
 message Track {
   string id = 1;
@@ -26,12 +29,21 @@ message Stock {
   string class_key = 1;
   string squadron = 2;
   uint32 unreserved_count = 3;
+  repeated LaunchOption launch_options = 4;
+}
+message LaunchOption {
+  string loadout = 1;
+  Availability availability = 2;
+  string reason = 3;
 }
 message Facility {
   string entity_id = 1;
   repeated Stock stocks = 2;
   uint32 pending_operations = 3;
   double sampled_at_seconds = 4;
+  optional uint32 onboard_count = 5;
+  optional uint32 reserved_count = 6;
+  optional uint32 cooldown_count = 7;
 }
 message WorldSnapshot {
   Session session = 1;
