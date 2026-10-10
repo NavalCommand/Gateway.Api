@@ -3,6 +3,10 @@ add_executable(api-tests NavalCommand/Gateway/Api/CodecTest.cpp)
 target_link_libraries(api-tests PRIVATE Gateway.Api GTest::gtest_main)
 NavalCommandConfigureTarget(api-tests)
 add_test(NAME codec COMMAND api-tests)
+add_executable(domain-consumer DomainConsumer.cpp)
+target_link_libraries(domain-consumer PRIVATE Gateway.Api)
+NavalCommandConfigureTarget(domain-consumer)
+add_test(NAME domain-transitive-includes COMMAND domain-consumer)
 find_program(DOTNET_EXECUTABLE dotnet REQUIRED)
 add_test(NAME managed-conformance
     COMMAND "${CMAKE_COMMAND}" "-DDOTNET=${DOTNET_EXECUTABLE}"

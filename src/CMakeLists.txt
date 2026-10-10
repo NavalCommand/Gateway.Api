@@ -17,5 +17,5 @@ endforeach()
 add_library(Gateway.Api STATIC ${generatedSources} NavalCommand/Gateway/Api/Codec.cpp)
 target_include_directories(Gateway.Api PUBLIC "${PROJECT_SOURCE_DIR}/public"
                                               "${generatedDirectory}")
-target_link_libraries(Gateway.Api PUBLIC protobuf::libprotobuf)
+target_link_libraries(Gateway.Api PUBLIC Orders.Api World.Api protobuf::libprotobuf)
 NavalCommandConfigureTarget(Gateway.Api)
