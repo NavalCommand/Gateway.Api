@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <stdexcept>
 #include <string>
+#include <variant>
 
 namespace Physics = NavalCommand::Physics::Api;
 namespace Catalog = NavalCommand::Catalog::Api;
@@ -11,215 +12,138 @@ namespace Observations = NavalCommand::Observations::Api;
 namespace Orders = NavalCommand::Orders::Api;
 namespace World = NavalCommand::World::Api;
 namespace Gateway = NavalCommand::Gateway::Api;
-template <class T> using Knowledge = NavalCommand::Uncertainty::Api::Knowledge<T>;
-template <class T> using Collection = NavalCommand::Uncertainty::Api::ObservedCollection<T>;
+template <class T> using Exact = NavalCommand::Uncertainty::Api::Exact<T>;
 
-TEST(Codec, ObserverSnapshotsHaveIndependentContactIdentities) {
+TEST(Codec, ObserverSnapshotsPreserveTwoStateAndPartialObservations) {
 	static_assert(std::is_same_v<decltype(Observations::UnitObservation::Identity), Observations::ObservationId>);
 	static_assert(std::is_same_v<decltype(World::ObserverSnapshot::Observer), Observations::ObserverId>);
-
-	World::ObserverSnapshot first;
-	first.SessionId = "session";
-	first.Observer = {"red"};
-	first.Ready = true;
-	first.Version = 9;
-	first.CapturedAt = {150};
-
+	World::ObserverSnapshot snapshot;
+	snapshot.SessionId = "session";
+	snapshot.Observer = {"red"};
+	snapshot.Ready = true;
+	snapshot.Version = 9;
+	snapshot.CapturedAt = {150};
 	Observations::UnitObservation contact;
-	contact.Identity = {"red-contact-1"};
-	contact.Type = Knowledge<Catalog::UnitTypeId>::Estimated({"missile"}, "ambiguous-classification");
-	contact.Kinematics.Position = Knowledge<Physics::Position>::Estimated({{61.0}, {-10.0}, {}}, "sensor-fusion");
-	contact.Kinematics.Speed = Knowledge<Physics::MetersPerSecond>::Known({0});
-	contact.Equipment = {Collection<Observations::EquipmentObservation>::Coverage::Unknown, {}};
-	first.Units = {contact, contact};
-	first.Units[1].Identity = {"red-fused-contact"};
-	first.Units[0].Name = Knowledge<std::string>::Known("Missile contact");
-	first.Memberships = {Collection<World::ObserverUnitRelationship>::Coverage::Complete,
-		{{contact.Identity, Knowledge<World::FactionId>::Known({"blue"}),
-			Knowledge<World::TaskForceId>::Estimated({"group-1"}, "fusion")}}};
-
-	World::ObserverSnapshot second = first;
-	second.Observer = {"blue"};
-	second.Units[0].Identity = {"blue-contact-8"};
-	second.Units[0].Type = Knowledge<Catalog::UnitTypeId>::Known({"missile"});
-	second.Units[0].Kinematics.Position = {};
-
-	const auto red = Gateway::Decode(Gateway::Encode(first));
-	const auto blue = Gateway::Decode(Gateway::Encode(second));
-	ASSERT_EQ(red.Units.size(), 2);
-	ASSERT_EQ(blue.Units.size(), 2);
-	EXPECT_EQ(red.Units[0].Identity.Value, "red-contact-1");
-	EXPECT_EQ(blue.Units[0].Identity.Value, "blue-contact-8");
-	EXPECT_TRUE(red.Units[0].Type.IsEstimated());
-	EXPECT_TRUE(blue.Units[0].Type.IsKnown());
-	EXPECT_EQ(red.Units[0].Name.Value(), "Missile contact");
-	EXPECT_FALSE(red.Units[1].Name.HasValue());
-	ASSERT_EQ(red.Memberships.Items().size(), 1);
-	EXPECT_EQ(red.Memberships.Items()[0].Faction.Value().Value, "blue");
-	EXPECT_EQ(red.Memberships.Items()[0].TaskForce.Source(), "fusion");
-	EXPECT_FALSE(blue.Units[0].Kinematics.Position.HasValue());
-	EXPECT_FALSE(red.Units[0].Aircraft.has_value());
-	EXPECT_FALSE(red.Units[0].AirOperations.has_value());
-	EXPECT_EQ(red.Memberships.GetCoverage(), Collection<World::ObserverUnitRelationship>::Coverage::Complete);
-
-	const auto publicBytes = Gateway::Encode(Gateway::ProviderObservation{first, {}}).SerializeAsString();
-	EXPECT_EQ(publicBytes.find("truth-private"), std::string::npos);
+	contact.Identity = {"red-contact"};
+	contact.Type = Exact<Catalog::UnitTypeId>::Known({"missile"});
+	contact.Kinematics.Position = Observations::PartiallyLocalizedPosition{{Physics::Degrees{61}}, {},
+		Observations::ObservedErrorEllipse{Physics::Meters{125}, Physics::Meters{50}, Physics::Radians{0}}};
+	contact.Kinematics.Speed = Exact<Physics::MetersPerSecond>::Known({0});
+	contact.Name = Exact<std::string>::Known("");
+	contact.Contributors.push_back({{"source-observer"}, {{"radar"}}});
+	contact.MeasuredAt = Exact<Physics::Seconds>::Known({125});
+	snapshot.Units.push_back(contact);
+	snapshot.Memberships.push_back({contact.Identity, Exact<World::FactionId>::Known({"blue"}), Exact<World::TaskForceId>::Unknown()});
+	const auto decoded = Gateway::Decode(Gateway::Encode(snapshot));
+	ASSERT_EQ(decoded.Units.size(), 1);
+	EXPECT_TRUE(decoded.Units[0].Name.HasValue());
+	EXPECT_EQ(decoded.Units[0].Name.Value(), "");
+	EXPECT_EQ(decoded.Units[0].MeasuredAt.Value().Value, 125);
+	EXPECT_EQ(decoded.Units[0].Kinematics.Speed.Value().Value, 0);
+	const auto* partial = std::get_if<Observations::PartiallyLocalizedPosition>(&decoded.Units[0].Kinematics.Position);
+	ASSERT_NE(partial, nullptr);
+	EXPECT_TRUE(partial->Latitude.has_value());
+	EXPECT_FALSE(partial->Longitude.has_value());
+	EXPECT_EQ(partial->ErrorEllipse->MajorAxis.Value, 125);
+	EXPECT_EQ(partial->ErrorEllipse->MinorAxis.Value, 50);
+	ASSERT_EQ(decoded.Units[0].Contributors.size(), 1);
+	EXPECT_EQ(decoded.Units[0].Contributors[0].Observer.Value, "source-observer");
+	ASSERT_EQ(decoded.Units[0].Contributors[0].Sensors.size(), 1);
+	EXPECT_EQ(decoded.Units[0].Contributors[0].Sensors[0].Value, "radar");
+	ASSERT_EQ(decoded.Memberships.size(), 1);
+	EXPECT_TRUE(decoded.Memberships[0].Faction.HasValue());
+	EXPECT_FALSE(decoded.Memberships[0].TaskForce.HasValue());
+	EXPECT_FALSE(decoded.Units[0].Aircraft.has_value());
+	EXPECT_FALSE(decoded.Units[0].AirOperations.has_value());
+	const auto bytes = Gateway::Encode(Gateway::ProviderObservation{snapshot, {}}).SerializeAsString();
+	EXPECT_EQ(bytes.find("truth-private"), std::string::npos);
 }
 
-TEST(Codec, KnownZeroFalseAndEmptyRouteDifferFromUnknown) {
+TEST(Codec, KnownZeroFalseAndEmptyRouteRemainDistinctFromUnknown) {
 	World::ObserverSnapshot source;
 	source.SessionId = "session";
 	source.Observer = {"observer"};
-	source.Version = 4;
 	Observations::UnitObservation unit;
 	unit.Identity = {"contact"};
-	unit.Kinematics.Speed = Knowledge<Physics::MetersPerSecond>::Known({0});
-	unit.Aircraft = Observations::AircraftObservation{Knowledge<bool>::Known(false)};
-	unit.Navigation = Observations::NavigationObservation{Knowledge<std::vector<Observations::ObservedRoutePoint>>::Known({})};
-	unit.Equipment = {Collection<Observations::EquipmentObservation>::Coverage::Complete, {}};
+	unit.Kinematics.Speed = Exact<Physics::MetersPerSecond>::Known({0});
+	unit.Aircraft = Observations::AircraftObservation{Exact<bool>::Known(false)};
+	unit.Kinematics.Position = Exact<Physics::Position>::Known({{61}, {-10}, Physics::Meters{0}});
+	unit.Navigation = Observations::NavigationObservation{Exact<std::vector<Observations::ObservedRoutePoint>>::Known({})};
 	source.Units.push_back(unit);
-
 	const auto decoded = Gateway::Decode(Gateway::Encode(source));
-	const auto& result = decoded.Units[0];
-	EXPECT_TRUE(result.Kinematics.Speed.IsKnown());
+	const auto& result = decoded.Units.front();
+	EXPECT_TRUE(result.Kinematics.Speed.HasValue());
 	EXPECT_EQ(result.Kinematics.Speed.Value().Value, 0);
-	ASSERT_TRUE(result.Aircraft);
-	EXPECT_TRUE(result.Aircraft->Airborne.IsKnown());
-
+	ASSERT_TRUE(result.Aircraft.has_value());
+	EXPECT_TRUE(result.Aircraft->Airborne.HasValue());
 	EXPECT_FALSE(result.Aircraft->Airborne.Value());
-	ASSERT_TRUE(result.Navigation);
-	EXPECT_TRUE(result.Navigation->PlannedRoute.IsKnown());
+	const auto* exactPosition = std::get_if<Exact<Physics::Position>>(&result.Kinematics.Position);
+	ASSERT_NE(exactPosition, nullptr);
+	ASSERT_TRUE(exactPosition->HasValue());
+	EXPECT_EQ(exactPosition->Value().Latitude.Value, 61);
+	EXPECT_EQ(exactPosition->Value().Longitude.Value, -10);
+	ASSERT_TRUE(result.Navigation.has_value());
+	EXPECT_TRUE(result.Navigation->PlannedRoute.HasValue());
 	EXPECT_TRUE(result.Navigation->PlannedRoute.Value().empty());
-	EXPECT_EQ(result.Equipment.GetCoverage(), Collection<Observations::EquipmentObservation>::Coverage::Complete);
+	EXPECT_TRUE(result.Equipment.empty());
 }
 
-TEST(Codec, OrdersCarryScopedHandlesAndOneTypedPayload) {
+TEST(Codec, OrdersCarryScopedHandlesAndExactlyOneTypedPayload) {
 	Orders::Request request;
 	request.SessionId = "session";
-	request.RequestId = "route-request";
+	request.RequestId = "request";
 	request.Observer = {"red"};
-	request.Observation = {"contact-1"};
-	request.BasedOnVersion = 11;
-	request.Payload = Orders::RouteCommand{{61.96}, {-10.37}, Orders::RouteMode::AppendWaypoint};
-
-	const auto routeWire = Gateway::Encode(request);
-	ASSERT_TRUE(routeWire.has_waypoint());
-	EXPECT_EQ(routeWire.observer().value(), "red");
-	EXPECT_EQ(routeWire.observation().value(), "contact-1");
-	EXPECT_EQ(Gateway::Decode(routeWire).Observation.Value, "contact-1");
-
-	Orders::Request launch;
-	launch.SessionId = "session";
-	launch.RequestId = "launch-request";
-	launch.Observer = {"red"};
-	launch.Observation = {"carrier-contact"};
-	launch.BasedOnVersion = 11;
-	launch.Payload = Orders::LaunchAircraft{{{"fighter"}, "VFA-1", {"loadout"}}, 2};
-	const auto launchWire = Gateway::Encode(launch);
-	ASSERT_TRUE(launchWire.has_launch_aircraft());
-	EXPECT_EQ(launchWire.launch_aircraft().selection().type().value(), "fighter");
-	EXPECT_EQ(std::get<Orders::LaunchAircraft>(Gateway::Decode(launchWire).Payload).Count, 2);
-
-	Orders::Result result;
-	result.SessionId = "session";
-	result.RequestId = "launch-request";
-	result.Observer = {"red"};
-	result.Stage = Orders::Stage::AircraftSpawned;
-	result.SpawnedObservation = Observations::ObservationId{"new-aircraft-contact"};
-	result.RouteBefore.push_back({{{1}, {2}, Physics::Meters{30}}, "old-waypoint"});
-	const auto resultWire = Gateway::Encode(result);
-	ASSERT_TRUE(resultWire.has_spawned_observation_id());
-	EXPECT_EQ(resultWire.spawned_observation_id().value(), "new-aircraft-contact");
-	EXPECT_EQ(resultWire.route_before(0).label(), "old-waypoint");
-	const auto decodedResult = Gateway::Decode(resultWire);
-	EXPECT_EQ(decodedResult.SpawnedObservation->Value, "new-aircraft-contact");
-	EXPECT_EQ(decodedResult.RouteBefore[0].Label, "old-waypoint");
-	EXPECT_EQ(decodedResult.RouteBefore[0].Position.Altitude->Value, 30);
+	request.Observation = {"contact"};
+	request.BasedOnVersion = 3;
+	request.Payload = Orders::RouteCommand{{61}, {-10}, Orders::RouteMode::AppendWaypoint};
+	const auto decoded = Gateway::Decode(Gateway::Encode(request));
+	EXPECT_EQ(decoded.Observer.Value, "red");
+	EXPECT_EQ(decoded.Observation.Value, "contact");
+	EXPECT_EQ(std::get<Orders::RouteCommand>(decoded.Payload).Mode, Orders::RouteMode::AppendWaypoint);
+	request.Payload = Orders::LaunchAircraft{{{"aircraft"}, "squadron", {"loadout"}}, 2};
+	EXPECT_EQ(std::get<Orders::LaunchAircraft>(Gateway::Decode(Gateway::Encode(request)).Payload).Count, 2);
+	Gateway::Wire::OrderRequest invalid;
+	EXPECT_THROW(Gateway::Decode(invalid), std::invalid_argument);
 }
 
-TEST(Codec, ProviderOverlayValidatesObserverObservationAndVersion) {
-	Gateway::ProviderObservation value;
-	value.Snapshot.SessionId = "session";
-	value.Snapshot.Observer = {"red"};
-	value.Snapshot.Version = 2;
-	Observations::UnitObservation unit;
-	unit.Identity = {"contact"};
-	value.Snapshot.Units.push_back(unit);
-	value.OrderAvailability.push_back({{"red"}, {"contact"}, 2,
-		{Collection<Orders::Eligibility>::Coverage::Complete,
-			{{Orders::OrderKind::ReplaceRoute, Orders::Availability::Executable, ""}}}});
-	EXPECT_EQ(Gateway::Decode(Gateway::Encode(value)).OrderAvailability.size(), 1);
-
-	auto forged = Gateway::Encode(value);
-	forged.mutable_order_availability(0)->mutable_observer()->set_value("blue");
-	EXPECT_THROW(Gateway::Decode(forged), std::invalid_argument);
+TEST(Codec, OrderOverlayContainsOnlyReportedRowsAndValidatesScope) {
+	World::ObserverSnapshot snapshot;
+	snapshot.SessionId = "session";
+	snapshot.Observer = {"red"};
+	snapshot.Version = 2;
+	Observations::UnitObservation contact;
+	contact.Identity = {"contact"};
+	snapshot.Units.push_back(contact);
+	Orders::Eligibility row{Orders::OrderKind::ReplaceRoute, Orders::Availability::Executable, ""};
+	Orders::OrderAvailability availability{{"red"}, {"contact"}, 2, {row}};
+	Gateway::ProviderObservation provider{snapshot, {availability}};
+	EXPECT_EQ(Gateway::Decode(Gateway::Encode(provider)).OrderAvailability.size(), 1);
+	auto invalid = Gateway::Encode(provider);
+	invalid.mutable_order_availability(0)->set_based_on_version(3);
+	EXPECT_THROW(Gateway::Decode(invalid), std::invalid_argument);
 }
 
-TEST(Codec, PrivilegedRecordingHoldsTruthPerspectivesAndOptionalManyToManyLabels) {
-	using namespace navalcommand::gateway::v1;
-	RecordedSession record;
-	record.mutable_simulation()->set_session_id("session");
-	record.mutable_simulation()->set_captured_at_seconds(3);
-	auto* truth = record.mutable_simulation()->add_units();
-	truth->mutable_identity()->set_value("truth-private");
-	truth->mutable_type()->set_value("missile");
-	truth->mutable_kinematics()->mutable_position()->set_latitude_deg(0);
-	truth->mutable_kinematics()->mutable_position()->set_longitude_deg(0);
-
-	auto* red = record.add_perspectives();
-	red->set_session_id("session");
-	red->set_schema_version(4);
-	red->mutable_observer()->set_value("red");
-	red->add_units()->mutable_identity()->set_value("red-contact");
-	red->mutable_units(0)->mutable_type()->mutable_estimated()->mutable_value()->set_value("missile");
-	auto* blue = record.add_perspectives();
-	blue->set_session_id("session");
-	blue->set_schema_version(4);
-	blue->mutable_observer()->set_value("blue");
-	blue->add_units()->mutable_identity()->set_value("blue-contact");
-	blue->mutable_units(0)->mutable_type()->mutable_known()->set_value("missile");
-
-	auto* redLink = record.add_associations();
-	redLink->mutable_observer()->set_value("red");
-	redLink->mutable_observation()->set_value("red-contact");
-	redLink->mutable_truth()->set_value("truth-private");
-	auto* blueLink = record.add_associations();
-	blueLink->mutable_observer()->set_value("blue");
-	blueLink->mutable_observation()->set_value("blue-contact");
-	blueLink->mutable_truth()->set_value("truth-private");
-
-	auto* request = record.add_decisions();
-	request->set_session_id("session");
-	request->mutable_observer()->set_value("red");
-	request->mutable_observation()->set_value("red-contact");
-	request->mutable_waypoint()->set_latitude_deg(1);
-	auto* outcome = record.add_outcomes();
-	outcome->set_session_id("session");
-	outcome->mutable_observer()->set_value("red");
-	outcome->set_stage(REQUEST_RECEIVED);
-
-	RecordedSession decoded;
-	ASSERT_TRUE(decoded.ParseFromString(record.SerializeAsString()));
-	EXPECT_EQ(decoded.simulation().units(0).identity().value(), "truth-private");
-	EXPECT_EQ(decoded.perspectives_size(), 2);
-	EXPECT_EQ(decoded.associations_size(), 2);
-	EXPECT_EQ(decoded.decisions_size(), 1);
-	EXPECT_EQ(decoded.outcomes_size(), 1);
-	ASSERT_TRUE(decoded.simulation().units(0).has_kinematics());
-	EXPECT_FALSE(decoded.simulation().units(0).has_air_operations());
-	EXPECT_FALSE(decoded.perspectives(0).units(0).has_aircraft());
-
-	ProviderObservation publicView;
-	publicView.mutable_snapshot()->set_session_id("session");
-	EXPECT_EQ(publicView.GetDescriptor()->FindFieldByName("snapshot")->message_type()->name(), "ObserverSnapshot");
+TEST(Codec, PrivilegedRecordedSessionRemainsSeparateFromPublicEnvelope) {
+	Gateway::Wire::RecordedSession recording;
+	recording.mutable_simulation()->set_session_id("private-session");
+	recording.mutable_simulation()->add_units()->mutable_identity()->set_value("truth-private");
+	auto* observer = recording.add_perspectives();
+	observer->set_schema_version(4);
+	observer->mutable_observer()->set_value("observer");
+	auto* association = recording.add_associations();
+	association->mutable_observer()->set_value("observer");
+	association->mutable_observation()->set_value("contact");
+	association->mutable_truth()->set_value("truth-private");
+	EXPECT_EQ(recording.simulation().units(0).identity().value(), "truth-private");
+	Gateway::ProviderObservation publicObservation;
+	publicObservation.Snapshot.SessionId = "public-session";
+	publicObservation.Snapshot.Observer = {"public-observer"};
+	const auto publicBytes = Gateway::Encode(publicObservation).SerializeAsString();
+	EXPECT_EQ(publicBytes.find("truth-private"), std::string::npos);
 }
+
 TEST(Codec, ObserverSnapshotRequiresCanonicalSchemaVersion) {
-	World::ObserverSnapshot value;
-	value.Observer = {"observer"};
-	const auto wire = Gateway::Encode(value);
-	EXPECT_EQ(wire.schema_version(), 4);
-
-	auto obsolete = wire;
-	obsolete.set_schema_version(3);
-	EXPECT_THROW(Gateway::Decode(obsolete), std::invalid_argument);
+	Gateway::Wire::ObserverSnapshot invalid;
+	invalid.mutable_observer()->set_value("observer");
+	EXPECT_THROW(Gateway::Decode(invalid), std::invalid_argument);
 }

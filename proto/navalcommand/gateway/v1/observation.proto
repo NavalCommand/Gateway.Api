@@ -2,12 +2,6 @@ syntax = "proto3";
 package navalcommand.gateway.v1;
 option csharp_namespace = "NavalCommand.Gateway.Wire";
 
-// Unknown has no members. Partial empty is incomplete enumeration, not known empty.
-enum CollectionCoverage {
-  COVERAGE_UNKNOWN = 0;
-  COVERAGE_PARTIAL = 1;
-  COVERAGE_COMPLETE = 2;
-}
 
 // Opaque identities are distinct: ObserverId scopes contact handles; neither implies authority.
 message ObserverId {
@@ -25,6 +19,12 @@ message UnitTypeId {
 message EquipmentTypeId {
   string value = 1;
 }
+// Only source-backed contributors are listed; an empty list is not proof there were none.
+message ObservationContributor {
+  ObservationId observer = 1;
+  repeated EquipmentTypeId sensors = 2;
+}
+
 
 message LoadoutId {
   string value = 1;

@@ -45,8 +45,8 @@ message OrderEligibility {
 }
 
 message OrderEligibilityState {
-  CollectionCoverage coverage = 1;
-  repeated OrderEligibility items = 2;
+  // A missing row is not executable; absence is interpreted as unknown/unreported.
+  repeated OrderEligibility items = 1;
 }
 
 message Waypoint {
