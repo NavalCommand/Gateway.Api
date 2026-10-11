@@ -2,11 +2,18 @@ syntax = "proto3";
 package navalcommand.gateway.v1;
 option csharp_namespace = "NavalCommand.Gateway.Wire";
 import "navalcommand/gateway/v1/observation.proto";
+
 enum Availability {
   UNKNOWN = 0;
   EXECUTABLE = 1;
   BLOCKED = 2;
   UNSUPPORTED = 3;
+}
+enum OrderKind {
+  ORDER_KIND_REPLACE_ROUTE = 0;
+  ORDER_KIND_APPEND_ROUTE = 1;
+  ORDER_KIND_IDLE_WAYPOINT = 2;
+  ORDER_KIND_LAUNCH_AIRCRAFT = 3;
 }
 enum Stage {
   STAGE_UNKNOWN = 0;
@@ -26,31 +33,32 @@ enum RouteMode {
   REPLACE_ROUTE = 1;
   APPEND_WAYPOINT = 2;
 }
-message RoutePoint {
-  double latitude_deg = 1;
-  double longitude_deg = 2;
-  string label = 3;
-}
 message OrderEligibility {
-  string kind = 1;
+  OrderKind kind = 1;
   Availability availability = 2;
   string reason = 3;
-  string argument_semantics = 4;
+  AircraftLaunch launch_option = 4;
 }
 message Waypoint {
   double latitude_deg = 1;
   double longitude_deg = 2;
   RouteMode route_mode = 3;
 }
+message AircraftLaunch {
+  UnitTypeId unit_type_id = 1;
+  string squadron = 2;
+  LoadoutId loadout_id = 3;
+  uint32 count = 4;
+}
 message OrderRequest {
   string session_id = 1;
   string request_id = 2;
-  // Observer/session scoped own-unit handle; track IDs never authorize commands.
-  Subject subject = 3;
+  UnitId unit_id = 3;
   uint64 based_on_version = 4;
-  oneof arguments {
+  // Exactly one payload is required. Authority is revalidated by the provider.
+  oneof payload {
     Waypoint waypoint = 5;
-    FacilityLaunch facility_launch = 6;
+    AircraftLaunch aircraft_launch = 6;
   }
 }
 message OrderResult {
@@ -63,13 +71,7 @@ message OrderResult {
   repeated RoutePoint route_before = 7;
   repeated RoutePoint route_after = 8;
   RouteMode route_mode = 9;
-  string spawned_entity_id = 10;
-}
-message FacilityLaunch {
-  string class_key = 1;
-  string squadron = 2;
-  string loadout = 3;
-  uint32 count = 4;
+  UnitId spawned_unit_id = 10;
 }
 message OrderEligibilityState {
   CollectionCoverage coverage = 1;
@@ -77,6 +79,7 @@ message OrderEligibilityState {
 }
 message OrderDiscovery {
   string session_id = 1;
-  Subject subject = 2;
+  UnitId unit_id = 2;
   OrderEligibilityState eligibility = 3;
+  uint64 based_on_version = 4;
 }

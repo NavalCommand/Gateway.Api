@@ -1,0 +1,11 @@
+syntax = "proto3";
+package navalcommand.gateway.v1;
+option csharp_namespace = "NavalCommand.Gateway.Wire";
+import "navalcommand/gateway/v1/world.proto";
+import "navalcommand/gateway/v1/orders.proto";
+
+// Bridge composition only: neither World nor UnitInstance owns order policy.
+message ProviderObservation {
+  WorldSnapshot snapshot = 1;
+  repeated OrderDiscovery order_availability = 2;
+}
