@@ -4,8 +4,9 @@ option csharp_namespace = "NavalCommand.Gateway.Wire";
 import "navalcommand/gateway/v1/world.proto";
 import "navalcommand/gateway/v1/orders.proto";
 
-// Bridge composition only: neither World nor UnitInstance owns order policy.
+// Public provider envelope: observer-visible snapshot plus separate order overlay.
+// Privileged simulation and correlation messages are deliberately not reachable here.
 message ProviderObservation {
-  WorldSnapshot snapshot = 1;
+  ObserverSnapshot snapshot = 1;
   repeated OrderDiscovery order_availability = 2;
 }

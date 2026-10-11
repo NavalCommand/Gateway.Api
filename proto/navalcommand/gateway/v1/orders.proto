@@ -2,6 +2,7 @@ syntax = "proto3";
 package navalcommand.gateway.v1;
 option csharp_namespace = "NavalCommand.Gateway.Wire";
 import "navalcommand/gateway/v1/observation.proto";
+import "navalcommand/gateway/v1/world.proto";
 
 enum Availability {
   UNKNOWN = 0;
@@ -9,12 +10,14 @@ enum Availability {
   BLOCKED = 2;
   UNSUPPORTED = 3;
 }
+
 enum OrderKind {
   ORDER_KIND_REPLACE_ROUTE = 0;
   ORDER_KIND_APPEND_ROUTE = 1;
   ORDER_KIND_IDLE_WAYPOINT = 2;
   ORDER_KIND_LAUNCH_AIRCRAFT = 3;
 }
+
 enum Stage {
   STAGE_UNKNOWN = 0;
   REQUEST_RECEIVED = 1;
@@ -27,40 +30,49 @@ enum Stage {
   AIRCRAFT_SPAWNED = 8;
   AIRBORNE = 9;
 }
-// Idle-waypoint mode appends only when native task selection is idle; never replaces a route.
+
 enum RouteMode {
   IDLE_WAYPOINT = 0;
   REPLACE_ROUTE = 1;
   APPEND_WAYPOINT = 2;
 }
+
 message OrderEligibility {
   OrderKind kind = 1;
   Availability availability = 2;
   string reason = 3;
-  AircraftLaunch launch_option = 4;
+  LaunchAircraft launch_option = 4;
 }
+
+message OrderEligibilityState {
+  CollectionCoverage coverage = 1;
+  repeated OrderEligibility items = 2;
+}
+
 message Waypoint {
   double latitude_deg = 1;
   double longitude_deg = 2;
   RouteMode route_mode = 3;
 }
-message AircraftLaunch {
-  UnitTypeId unit_type_id = 1;
-  string squadron = 2;
-  LoadoutId loadout_id = 3;
-  uint32 count = 4;
+
+message LaunchAircraft {
+  AircraftSelection selection = 1;
+  uint32 count = 2;
 }
+
 message OrderRequest {
   string session_id = 1;
   string request_id = 2;
-  UnitId unit_id = 3;
-  uint64 based_on_version = 4;
-  // Exactly one payload is required. Authority is revalidated by the provider.
+  ObserverId observer = 3;
+  ObservationId observation = 4;
+  uint64 based_on_version = 5;
+  // Exactly one payload is required; provider checks authority/current state.
   oneof payload {
-    Waypoint waypoint = 5;
-    AircraftLaunch aircraft_launch = 6;
+    Waypoint waypoint = 6;
+    LaunchAircraft launch_aircraft = 7;
   }
 }
+
 message OrderResult {
   string session_id = 1;
   string request_id = 2;
@@ -71,15 +83,14 @@ message OrderResult {
   repeated RoutePoint route_before = 7;
   repeated RoutePoint route_after = 8;
   RouteMode route_mode = 9;
-  UnitId spawned_unit_id = 10;
+  ObserverId observer = 10;
+  ObservationId spawned_observation_id = 11;
 }
-message OrderEligibilityState {
-  CollectionCoverage coverage = 1;
-  repeated OrderEligibility items = 2;
-}
+
 message OrderDiscovery {
   string session_id = 1;
-  UnitId unit_id = 2;
-  OrderEligibilityState eligibility = 3;
-  uint64 based_on_version = 4;
+  ObserverId observer = 2;
+  ObservationId observation = 3;
+  OrderEligibilityState eligibility = 4;
+  uint64 based_on_version = 5;
 }

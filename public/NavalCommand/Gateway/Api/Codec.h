@@ -8,8 +8,8 @@ Wire::OrderEligibilityState Encode(const Uncertainty::Api::ObservedCollection<Or
 Uncertainty::Api::ObservedCollection<Orders::Api::Eligibility> Decode(const Wire::OrderEligibilityState &);
 Wire::OrderDiscovery Encode(const Orders::Api::OrderAvailability &);
 Orders::Api::OrderAvailability Decode(const Wire::OrderDiscovery &);
-Wire::WorldSnapshot Encode(const World::Api::View &);
-World::Api::View Decode(const Wire::WorldSnapshot &);
+Wire::ObserverSnapshot Encode(const World::Api::ObserverSnapshot &);
+World::Api::ObserverSnapshot Decode(const Wire::ObserverSnapshot &);
 Wire::ProviderObservation Encode(const ProviderObservation &);
 ProviderObservation Decode(const Wire::ProviderObservation &);
 Wire::OrderRequest Encode(const Orders::Api::Request &);

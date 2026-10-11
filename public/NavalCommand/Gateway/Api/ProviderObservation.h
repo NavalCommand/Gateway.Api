@@ -1,12 +1,12 @@
 #pragma once
 #include <NavalCommand/Orders/Api/OrderAvailability.h>
-#include <NavalCommand/World/Api/View.h>
+#include <NavalCommand/World/Api/ObserverSnapshot.h>
 #include <vector>
 
 namespace NavalCommand::Gateway::Api {
-// Owned I/O snapshot and independent order-policy overlay. Domain World stays order-free.
+// Public I/O view is one observer snapshot plus a separately authorized order overlay.
 struct ProviderObservation {
-	World::Api::View Snapshot;
+	World::Api::ObserverSnapshot Snapshot;
 	std::vector<Orders::Api::OrderAvailability> OrderAvailability;
 };
 }

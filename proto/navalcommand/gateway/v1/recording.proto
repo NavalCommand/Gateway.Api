@@ -1,0 +1,15 @@
+syntax = "proto3";
+package navalcommand.gateway.v1;
+option csharp_namespace = "NavalCommand.Gateway.Wire";
+import "navalcommand/gateway/v1/world.proto";
+import "navalcommand/gateway/v1/orders.proto";
+
+// Internal privileged recording contract only. This message is never returned by an
+// ordinary provider or RPC; it intentionally combines truth and observer perspectives.
+message RecordedSession {
+  SimulationSnapshot simulation = 1;
+  repeated ObserverSnapshot perspectives = 2;
+  repeated PrivilegedObservationAssociation associations = 3;
+  repeated OrderRequest decisions = 4;
+  repeated OrderResult outcomes = 5;
+}

@@ -1,104 +1,242 @@
 syntax = "proto3";
 package navalcommand.gateway.v1;
 option csharp_namespace = "NavalCommand.Gateway.Wire";
-import "navalcommand/gateway/v1/session.proto";
 import "navalcommand/gateway/v1/observation.proto";
 
-// Unset knowledge oneof is Unknown; zero/false are meaningful known values.
+// A missing Knowledge.state is Unknown. Known zero/false/empty remain representable.
 message GeoPoint {
   optional double latitude_deg = 1;
   optional double longitude_deg = 2;
   optional double altitude_m = 3;
 }
+
 message PositionObservation {
-  GeoPoint coordinates = 1;
   message ErrorEllipse {
     double major_axis_m = 1;
     double minor_axis_m = 2;
     double orientation_rad = 3;
   }
+  GeoPoint coordinates = 1;
   ErrorEllipse error_ellipse = 2;
 }
-message Route { repeated RoutePoint points = 1; }
-enum EquipmentReadiness { EQUIPMENT_READY = 0; EQUIPMENT_BUSY = 1; EQUIPMENT_UNAVAILABLE = 2; }
-enum EquipmentDamage { EQUIPMENT_INTACT = 0; EQUIPMENT_DAMAGED = 1; EQUIPMENT_DESTROYED = 2; }
+
+message Route {
+  repeated RoutePoint points = 1;
+}
+
+enum EquipmentReadiness {
+  EQUIPMENT_READY = 0;
+  EQUIPMENT_BUSY = 1;
+  EQUIPMENT_UNAVAILABLE = 2;
+}
+
+enum EquipmentDamage {
+  EQUIPMENT_INTACT = 0;
+  EQUIPMENT_DAMAGED = 1;
+  EQUIPMENT_DESTROYED = 2;
+}
+
 message StringKnowledge {
-  message Estimate { optional string value = 1; string source = 2; }
-  oneof state { string known = 1; Estimate estimated = 2; }
+  message Estimate {
+    optional string value = 1;
+    string source = 2;
+  }
+  oneof state {
+    string known = 1;
+    Estimate estimated = 2;
+  }
 }
+
 message DoubleKnowledge {
-  message Estimate { optional double value = 1; string source = 2; }
-  oneof state { double known = 1; Estimate estimated = 2; }
+  message Estimate {
+    optional double value = 1;
+    string source = 2;
+  }
+  oneof state {
+    double known = 1;
+    Estimate estimated = 2;
+  }
 }
+
 message UInt32Knowledge {
-  message Estimate { optional uint32 value = 1; string source = 2; }
-  oneof state { uint32 known = 1; Estimate estimated = 2; }
+  message Estimate {
+    optional uint32 value = 1;
+    string source = 2;
+  }
+  oneof state {
+    uint32 known = 1;
+    Estimate estimated = 2;
+  }
 }
+
 message BoolKnowledge {
-  message Estimate { optional bool value = 1; string source = 2; }
-  oneof state { bool known = 1; Estimate estimated = 2; }
+  message Estimate {
+    optional bool value = 1;
+    string source = 2;
+  }
+  oneof state {
+    bool known = 1;
+    Estimate estimated = 2;
+  }
 }
+
 message UnitTypeIdKnowledge {
-  message Estimate { UnitTypeId value = 1; string source = 2; }
-  oneof state { UnitTypeId known = 1; Estimate estimated = 2; }
+  message Estimate {
+    UnitTypeId value = 1;
+    string source = 2;
+  }
+  oneof state {
+    UnitTypeId known = 1;
+    Estimate estimated = 2;
+  }
 }
+
 message EquipmentTypeIdKnowledge {
-  message Estimate { EquipmentTypeId value = 1; string source = 2; }
-  oneof state { EquipmentTypeId known = 1; Estimate estimated = 2; }
+  message Estimate {
+    EquipmentTypeId value = 1;
+    string source = 2;
+  }
+  oneof state {
+    EquipmentTypeId known = 1;
+    Estimate estimated = 2;
+  }
 }
+
+message FactionId {
+  string value = 1;
+}
+
+message TaskForceId {
+  string value = 1;
+}
+
+message FactionIdKnowledge {
+  message Estimate {
+    FactionId value = 1;
+    string source = 2;
+  }
+  oneof state {
+    FactionId known = 1;
+    Estimate estimated = 2;
+  }
+}
+
+message TaskForceIdKnowledge {
+  message Estimate {
+    TaskForceId value = 1;
+    string source = 2;
+  }
+  oneof state {
+    TaskForceId known = 1;
+    Estimate estimated = 2;
+  }
+}
+
 message PositionKnowledge {
-  message Estimate { PositionObservation value = 1; string source = 2; }
-  oneof state { PositionObservation known = 1; Estimate estimated = 2; }
+  message Estimate {
+    PositionObservation value = 1;
+    string source = 2;
+  }
+  oneof state {
+    PositionObservation known = 1;
+    Estimate estimated = 2;
+  }
 }
+
 message RouteKnowledge {
-  message Estimate { Route value = 1; string source = 2; }
-  oneof state { Route known = 1; Estimate estimated = 2; }
+  message Estimate {
+    Route value = 1;
+    string source = 2;
+  }
+  oneof state {
+    Route known = 1;
+    Estimate estimated = 2;
+  }
 }
-message ReadinessKnowledge {
-  message Estimate { optional EquipmentReadiness value = 1; string source = 2; }
-  oneof state { EquipmentReadiness known = 1; Estimate estimated = 2; }
-}
-message DamageKnowledge {
-  message Estimate { optional EquipmentDamage value = 1; string source = 2; }
-  oneof state { EquipmentDamage known = 1; Estimate estimated = 2; }
-}
+
 message ResourceValue {
-  oneof quantity { uint64 discrete = 1; double continuous = 2; }
+  oneof quantity {
+    uint64 discrete = 1;
+    double continuous = 2;
+  }
 }
+
 message ResourceKnowledge {
-  message Estimate { ResourceValue value = 1; string source = 2; }
-  oneof state { ResourceValue known = 1; Estimate estimated = 2; }
+  message Estimate {
+    ResourceValue value = 1;
+    string source = 2;
+  }
+  oneof state {
+    ResourceValue known = 1;
+    Estimate estimated = 2;
+  }
 }
-message ResourceObservation { ResourceId resource_id = 1; ResourceKnowledge amount = 2; }
-message ObservedResources { CollectionCoverage coverage = 1; repeated ResourceObservation items = 2; }
-message IdentityState { StringKnowledge name = 1; UnitTypeIdKnowledge type_id = 2; }
-message KinematicsState {
+
+message ResourceObservation {
+  ResourceId resource_id = 1;
+  ResourceKnowledge amount = 2;
+}
+
+message ObservedResources {
+  CollectionCoverage coverage = 1;
+  repeated ResourceObservation items = 2;
+}
+
+message ObservationMetadata {
+  DoubleKnowledge measured_at_seconds = 1;
+  repeated string evidence = 2;
+}
+
+message EquipmentObservation {
+  EquipmentTypeIdKnowledge type_id = 1;
+  BoolKnowledge active = 2;
+  ObservedResources resources = 3;
+}
+
+message ObservedEquipment {
+  CollectionCoverage coverage = 1;
+  repeated EquipmentObservation items = 2;
+}
+
+message KinematicsObservation {
   PositionKnowledge position = 1;
   DoubleKnowledge speed_mps = 2;
   DoubleKnowledge heading_rad = 3;
   DoubleKnowledge course_over_ground_rad = 4;
 }
-message NavigationState { RouteKnowledge planned_route = 1; }
-message AircraftState { BoolKnowledge airborne = 1; }
-// Last genuine measurement only. Snapshot capture time is on WorldSnapshot.
-// Estimated source is a provenance trace, not a claimed sensor identity.
-message ObservationMetadata { DoubleKnowledge measured_at_seconds = 1; }
-message EquipmentInstance {
-  EquipmentTypeIdKnowledge type_id = 1;
-  BoolKnowledge active = 2;
-  ReadinessKnowledge operational_readiness = 3;
-  DamageKnowledge damage_state = 4;
-  ObservedResources resources = 5;
+
+message NavigationObservation {
+  RouteKnowledge planned_route = 1;
 }
-message ObservedEquipment { CollectionCoverage coverage = 1; repeated EquipmentInstance items = 2; }
-message AircraftInventoryEntry {
-  UnitTypeId unit_type_id = 1;
+
+message AircraftObservation {
+  BoolKnowledge airborne = 1;
+}
+
+message AircraftSelection {
+  UnitTypeId type = 1;
   string squadron = 2;
-  UInt32Knowledge unreserved_count = 3;
-  repeated LoadoutId loadouts = 4;
+  LoadoutId loadout = 3;
 }
-message AircraftInventory { CollectionCoverage coverage = 1; repeated AircraftInventoryEntry items = 2; }
-message AirOperations {
+
+message ObservedLoadouts {
+  CollectionCoverage coverage = 1;
+  repeated LoadoutId items = 2;
+}
+
+message AircraftInventoryEntry {
+  UnitTypeIdKnowledge type = 1;
+  StringKnowledge squadron = 2;
+  UInt32Knowledge unreserved_count = 3;
+  ObservedLoadouts loadouts = 4;
+}
+
+message AircraftInventory {
+  CollectionCoverage coverage = 1;
+  repeated AircraftInventoryEntry items = 2;
+}
+
+message AirOperationsObservation {
   AircraftInventory inventory = 1;
   UInt32Knowledge pending_operations = 2;
   UInt32Knowledge onboard_count = 3;
@@ -106,27 +244,112 @@ message AirOperations {
   UInt32Knowledge cooldown_count = 5;
   DoubleKnowledge measured_at_seconds = 6;
 }
-message UnitInstance {
-  UnitId unit_id = 1;
-  IdentityState display = 2;
-  KinematicsState kinematics = 3;
-  ObservationMetadata observation = 4;
-  ObservedEquipment equipment = 5;
-  NavigationState navigation = 6;
-  AircraftState aircraft = 7;
-  AirOperations air_operations = 8;
+
+message UnitObservation {
+  ObservationId identity = 1;
+  UnitTypeIdKnowledge type = 2;
+  KinematicsObservation kinematics = 3;
+  ObservedEquipment equipment = 4;
+  NavigationObservation navigation = 5;
+  AircraftObservation aircraft = 6;
+  AirOperationsObservation air_operations = 7;
+  ObservationMetadata evidence = 8;
+  StringKnowledge name = 9;
 }
-message UnitMembership {
-  UnitId unit_id = 1;
-  StringKnowledge faction = 2;
-  StringKnowledge task_force = 3;
+
+message ObserverUnitRelationship {
+  ObservationId observation = 1;
+  FactionIdKnowledge faction = 2;
+  TaskForceIdKnowledge task_force = 3;
 }
-message ObservedMemberships { CollectionCoverage coverage = 1; repeated UnitMembership items = 2; }
-message WorldSnapshot {
-  Session session = 1;
-  uint64 observation_version = 2;
-  double operational_seconds = 3;
-  repeated UnitInstance instances = 4;
-  bool truncated = 5;
-  ObservedMemberships memberships = 6;
+
+message ObservedRelationships {
+  CollectionCoverage coverage = 1;
+  repeated ObserverUnitRelationship items = 2;
+}
+
+// Public ordinary view is strictly observer-scoped; contains no true UnitId or correlation.
+message ObserverSnapshot {
+  string session_id = 1;
+  ObserverId observer = 2;
+  bool ready = 3;
+  bool truncated = 4;
+  uint64 version = 5;
+  double captured_at_seconds = 6;
+  repeated UnitObservation units = 7;
+  ObservedRelationships memberships = 8;
+  uint32 schema_version = 9; // Current canonical observer schema version is 4.
+}
+
+// Privileged recording only. Never nested in ObserverSnapshot or exposed by provider RPC.
+message UnitId {
+  string value = 1;
+}
+
+message TrueKinematicsState {
+  optional GeoPoint position = 1;
+  optional double speed_mps = 2;
+  optional double heading_rad = 3;
+  optional double course_over_ground_rad = 4;
+}
+
+message TrueResourceAmount {
+  ResourceId resource_id = 1;
+  ResourceValue amount = 2;
+}
+
+message TrueEquipmentInstance {
+  EquipmentTypeId type = 1;
+  optional bool active = 2;
+  optional EquipmentReadiness operational_readiness = 3;
+  optional EquipmentDamage damage_state = 4;
+  repeated TrueResourceAmount resources = 5;
+}
+
+message TrueAircraftInventoryEntry {
+  UnitTypeId type = 1;
+  string squadron = 2;
+  uint32 unreserved_count = 3;
+  repeated LoadoutId loadouts = 4;
+}
+
+message TrueAirOperationsState {
+  repeated TrueAircraftInventoryEntry inventory = 1;
+  optional uint32 pending_operations = 2;
+  optional uint32 onboard_count = 3;
+  optional uint32 reserved_count = 4;
+  optional uint32 cooldown_count = 5;
+  optional double measured_at_seconds = 6;
+}
+
+message TrueEquipmentCollection {
+  repeated TrueEquipmentInstance items = 1;
+}
+
+message TrueUnitInstance {
+  UnitId identity = 1;
+  optional UnitTypeId type = 2;
+  optional TrueKinematicsState kinematics = 3;
+  TrueEquipmentCollection equipment = 4;
+  optional bool airborne = 5;
+  TrueAirOperationsState air_operations = 6;
+}
+
+message AuthoritativeMembership {
+  UnitId subject = 1;
+  FactionId faction = 2;
+  TaskForceId task_force = 3;
+}
+
+message SimulationSnapshot {
+  string session_id = 1;
+  double captured_at_seconds = 2;
+  repeated TrueUnitInstance units = 3;
+  repeated AuthoritativeMembership memberships = 4;
+}
+
+message PrivilegedObservationAssociation {
+  ObserverId observer = 1;
+  ObservationId observation = 2;
+  UnitId truth = 3;
 }
