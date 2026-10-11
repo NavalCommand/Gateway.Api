@@ -10,7 +10,7 @@
   <Target Name="CanonicalCodegen" BeforeTargets="BeforeCompile">
     <Error Condition="'$(Protoc)' == ''" Text="Configure CMake to resolve the pinned source-built protoc." />
     <MakeDir Directories="$(IntermediateOutputPath)generated" />
-    <Exec Command="&quot;$(Protoc)&quot; --proto_path=&quot;$(MSBuildProjectDirectory)/../proto&quot; --csharp_out=&quot;$(IntermediateOutputPath)generated&quot; &quot;$(MSBuildProjectDirectory)/../proto/navalcommand/gateway/v1/session.proto&quot; &quot;$(MSBuildProjectDirectory)/../proto/navalcommand/gateway/v1/orders.proto&quot; &quot;$(MSBuildProjectDirectory)/../proto/navalcommand/gateway/v1/world.proto&quot; &quot;$(MSBuildProjectDirectory)/../proto/navalcommand/gateway/v1/incidents.proto&quot;" />
+    <Exec Command="&quot;$(Protoc)&quot; --proto_path=&quot;$(MSBuildProjectDirectory)/../proto&quot; --csharp_out=&quot;$(IntermediateOutputPath)generated&quot; &quot;$(MSBuildProjectDirectory)/../proto/navalcommand/gateway/v1/session.proto&quot; &quot;$(MSBuildProjectDirectory)/../proto/navalcommand/gateway/v1/observation.proto&quot; &quot;$(MSBuildProjectDirectory)/../proto/navalcommand/gateway/v1/orders.proto&quot; &quot;$(MSBuildProjectDirectory)/../proto/navalcommand/gateway/v1/world.proto&quot; &quot;$(MSBuildProjectDirectory)/../proto/navalcommand/gateway/v1/incidents.proto&quot;" />
     <ItemGroup>
       <Compile Include="$(IntermediateOutputPath)generated/*.cs" />
     </ItemGroup>

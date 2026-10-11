@@ -1,0 +1,16 @@
+syntax = "proto3";
+package navalcommand.gateway.v1;
+option csharp_namespace = "NavalCommand.Gateway.Wire";
+
+// Unknown has no members. Partial empty is incomplete enumeration, not known empty.
+enum CollectionCoverage {
+  COVERAGE_UNKNOWN = 0;
+  COVERAGE_PARTIAL = 1;
+  COVERAGE_COMPLETE = 2;
+}
+message Subject {
+  oneof identity {
+    string own_unit_id = 1;
+    string track_id = 2;
+  }
+}

@@ -3,9 +3,8 @@
 #include <NavalCommand/Orders/Api/RouteCommand.h>
 #include <NavalCommand/World/Api/View.h>
 
-int main()
-{
-	NavalCommand::Orders::Api::Request request{"session", "request", "unit", 7, NavalCommand::Orders::Api::RouteCommand{61.96, -10.37}};
+int main() {
+	NavalCommand::Orders::Api::Request request{"session", "request", {"unit"}, 7, NavalCommand::Orders::Api::RouteCommand{61.96, -10.37}};
 	const auto roundTrip = NavalCommand::Gateway::Api::Decode(NavalCommand::Gateway::Api::Encode(request));
 	NavalCommand::World::Api::View view;
 	view.sessionId = roundTrip.sessionId;

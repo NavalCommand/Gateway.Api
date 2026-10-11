@@ -25,7 +25,6 @@ Presets contain configurePresets only, windows-msvc-debug/release and linux-clan
 
 Windows target and host dependencies use `x64-windows-static`, matching `/MT` in Release and `/MTd` in Debug. Reconfigure with `--fresh` and relink when migrating earlier dynamic-CRT artifacts.
 
-Public aggregate member spellings remain source compatible with existing clients. Domain.Api purpose-specific headers define individual types; `Order.h` and `View.h` retain their previous include surface. Legacy camelCase public fields are deliberate compatibility exceptions to the owner's PascalCase rule. Generated Protobuf types and methods retain generator-defined names.
 
 ## Managed build integration
 
@@ -33,4 +32,8 @@ Follow the authoritative [managed build policy](../Docs/MANAGED_BUILD.md). One C
 
 All repository-owned generated files stay under `o/`: native preset directories, per-project MSBuild `o/managed/<project>/{bin,obj}/` directories and mod `o/package`/`o/harness` stages. MSBuild preserves configuration/platform/framework dimensions. The shared helper discovers managed/CMakeLists.txt and invokes only the requested top-level project; MSBuild owns NuGet and transitive compilation. Game-reference absence blocks only requested game-dependent projects.
 
-The new Domain.Api repository is initially local and unpublished. Add its canonical URL (`https://github.com/NavalCommand/Domain.Api.git`) and local checkout through NavalCommandSetDependencyPath in the ignored top-level Build.Local.cmake, including when configuring a transitive consumer. Public Git fetching remains blocked until the owner publishes that repository. No header shadows or forwarding copies remain in Gateway.Api.
+## Composed world contracts
+
+`World.Api` exposes one `UnitInstance` shape and one `View::Instances` collection. Tagged subjects distinguish own-unit authority from observer tracks. Components carry explicit Known/Estimated/Unknown values; equipment coverage distinguishes complete empty from unknown. Catalog definitions use one composable `EquipmentType` and definitive resolved loadouts. Catalog retrieval and Sea Power equipment extraction remain future work.
+
+The canonical world Protobuf directly mirrors these components. Schema version 2 intentionally replaces the split world schema; producers and consumers must use the same checkout graph. There are no compatibility projections. See [Task 014 report](../Docs/Tasks/014/REPORT.md).

@@ -4,14 +4,15 @@ set(GATEWAY_API_PROTO_DIR
         CACHE INTERNAL "Canonical payload source" FORCE)
 set(generatedDirectory "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${generatedDirectory}")
-foreach (protoName session orders world incidents)
+file(GLOB_RECURSE canonicalProtoInputs CONFIGURE_DEPENDS "${GATEWAY_API_PROTO_DIR}/*.proto")
+foreach (protoName session observation orders world incidents)
     set(protoRelativePath "navalcommand/gateway/v1/${protoName}")
     add_custom_command(
             OUTPUT "${generatedDirectory}/${protoRelativePath}.pb.cc"
             "${generatedDirectory}/${protoRelativePath}.pb.h"
             COMMAND protobuf::protoc --proto_path=${GATEWAY_API_PROTO_DIR}
             --cpp_out=${generatedDirectory} ${GATEWAY_API_PROTO_DIR}/${protoRelativePath}.proto
-            DEPENDS "${GATEWAY_API_PROTO_DIR}/${protoRelativePath}.proto" protobuf::protoc)
+            DEPENDS ${canonicalProtoInputs} protobuf::protoc)
     list(APPEND generatedSources "${generatedDirectory}/${protoRelativePath}.pb.cc")
 endforeach ()
 add_library(Gateway.Api STATIC ${generatedSources} NavalCommand/Gateway/Api/Codec.cpp)

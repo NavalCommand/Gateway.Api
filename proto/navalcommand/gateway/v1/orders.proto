@@ -1,6 +1,7 @@
 syntax = "proto3";
 package navalcommand.gateway.v1;
 option csharp_namespace = "NavalCommand.Gateway.Wire";
+import "navalcommand/gateway/v1/observation.proto";
 enum Availability {
   UNKNOWN = 0;
   EXECUTABLE = 1;
@@ -19,9 +20,9 @@ enum Stage {
   AIRCRAFT_SPAWNED = 8;
   AIRBORNE = 9;
 }
-// Omitted mode preserves the legacy idle-only command; never replaces a route.
+// Idle-waypoint mode appends only when native task selection is idle; never replaces a route.
 enum RouteMode {
-  LEGACY_IDLE = 0;
+  IDLE_WAYPOINT = 0;
   REPLACE_ROUTE = 1;
   APPEND_WAYPOINT = 2;
 }
@@ -44,7 +45,8 @@ message Waypoint {
 message OrderRequest {
   string session_id = 1;
   string request_id = 2;
-  string entity_id = 3;
+  // Observer/session scoped own-unit handle; track IDs never authorize commands.
+  Subject subject = 3;
   uint64 based_on_version = 4;
   oneof arguments {
     Waypoint waypoint = 5;
@@ -69,8 +71,12 @@ message FacilityLaunch {
   string loadout = 3;
   uint32 count = 4;
 }
+message OrderEligibilityState {
+  CollectionCoverage coverage = 1;
+  repeated OrderEligibility items = 2;
+}
 message OrderDiscovery {
   string session_id = 1;
-  string entity_id = 2;
-  repeated OrderEligibility orders = 3;
+  Subject subject = 2;
+  OrderEligibilityState eligibility = 3;
 }

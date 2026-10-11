@@ -1,9 +1,10 @@
 syntax = "proto3";
 package navalcommand.gateway.v1;
 option csharp_namespace = "NavalCommand.Gateway.Wire";
+import "navalcommand/gateway/v1/observation.proto";
 message Query {
   string session_id = 1;
-  string entity_id = 2;
+  Subject subject = 2;
   string request_id = 3;
 }
 message Session {
