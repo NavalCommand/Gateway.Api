@@ -1,9 +1,9 @@
 #include <NavalCommand/Gateway/Api/Codec.h>
 #include <NavalCommand/Observations/Api/AirOperationsObservation.h>
-#include <NavalCommand/Observations/Api/EquipmentObservation.h>
+#include <../../../../../Domain.Api/public/NavalCommand/Equipment/Api/EquipmentObservation.h>
 #include <NavalCommand/Observations/Api/NavigationObservation.h>
 #include <NavalCommand/Orders/Api/LaunchAircraft.h>
-#include <NavalCommand/Orders/Api/RouteCommand.h>
+#include <NavalCommand/Orders/Api/Route.h>
 #include <variant>
 
 #include <stdexcept>
@@ -28,7 +28,7 @@ static void requireId(std::string_view value) {
 }
 
 static void put(Wire::ObserverId& wire, const Obs::ObserverId& value) { wire.set_value(value.Value); }
-static void put(Wire::ObservationId& wire, const Obs::ObservationId& value) { wire.set_value(value.Value); }
+static void put(Wire::ObservationId& wire, const Obs::Id& value) { wire.set_value(value.Value); }
 static void put(Wire::UnitTypeId& wire, const Catalog::UnitTypeId& value) { wire.set_value(value.Value); }
 static void put(Wire::EquipmentTypeId& wire, const Catalog::EquipmentTypeId& value) { wire.set_value(value.Value); }
 static void put(Wire::ResourceId& wire, const Catalog::ResourceId& value) { wire.set_value(value.Value); }
@@ -55,7 +55,7 @@ static ExactValue<T> decodeExact(bool present, Getter&& getter) {
 static void put(Wire::GeoPoint& wire, const Physics::Position& value) {
 	wire.set_latitude_deg(value.Latitude.Value);
 	wire.set_longitude_deg(value.Longitude.Value);
-	if (value.Altitude) wire.set_altitude_m(value.Altitude->Value);
+	if (value.Elevation) wire.set_altitude_m(value.Elevation->Value);
 }
 
 static Physics::Position getExactPosition(const Wire::GeoPoint& wire) {
@@ -63,7 +63,7 @@ static Physics::Position getExactPosition(const Wire::GeoPoint& wire) {
 	Physics::Position value;
 	value.Latitude = Physics::Degrees{wire.latitude_deg()};
 	value.Longitude = Physics::Degrees{wire.longitude_deg()};
-	if (wire.has_altitude_m()) value.Altitude = Physics::Meters{wire.altitude_m()};
+	if (wire.has_altitude_m()) value.Elevation = Physics::Meters{wire.altitude_m()};
 	return value;
 }
 
@@ -93,14 +93,14 @@ static void put(Wire::RoutePoint& wire, const Obs::ObservedRoutePoint& value) {
 	wire.set_latitude_deg(value.Position.Latitude.Value);
 	wire.set_longitude_deg(value.Position.Longitude.Value);
 	wire.set_label(value.Label);
-	if (value.Position.Altitude) wire.set_altitude_m(value.Position.Altitude->Value);
+	if (value.Position.Elevation) wire.set_altitude_m(value.Position.Elevation->Value);
 }
 
 static Obs::ObservedRoutePoint getRoutePoint(const Wire::RoutePoint& wire) {
 	Physics::Position position;
 	position.Latitude = Physics::Degrees{wire.latitude_deg()};
 	position.Longitude = Physics::Degrees{wire.longitude_deg()};
-	if (wire.has_altitude_m()) position.Altitude = Physics::Meters{wire.altitude_m()};
+	if (wire.has_altitude_m()) position.Elevation = Physics::Meters{wire.altitude_m()};
 	return {position, wire.label()};
 }
 
@@ -176,7 +176,7 @@ Orders::OrderAvailability Decode(const Wire::OrderDiscovery& wire) {
 	return {{wire.observer().value()}, {wire.observation().value()}, wire.based_on_version(), Decode(wire.eligibility())};
 }
 
-static void encodeUnitObservation(Wire::UnitObservation& wire, const Obs::UnitObservation& value) {
+static void encodeUnitObservation(Wire::UnitObservation& wire, const Obs::Instance& value) {
 	put(*wire.mutable_identity(), value.Identity);
 	requireId(value.Identity.Value);
 	encodeExact(value.Name, [&](const std::string& name) { wire.set_name(name); });
@@ -226,9 +226,9 @@ static void encodeUnitObservation(Wire::UnitObservation& wire, const Obs::UnitOb
 	}
 }
 
-static Obs::UnitObservation decodeUnitObservation(const Wire::UnitObservation& wire) {
+static Obs::Instance decodeUnitObservation(const Wire::UnitObservation& wire) {
 	requireId(wire.identity().value());
-	Obs::UnitObservation value;
+	Obs::Instance value;
 	value.Identity = {wire.identity().value()};
 	value.Name = decodeExact<std::string>(wire.has_name(), [&] { return wire.name(); });
 	value.Type = decodeExact<Catalog::UnitTypeId>(wire.has_type(), [&] { return Catalog::UnitTypeId{wire.type().value()}; });
@@ -259,7 +259,7 @@ static Obs::UnitObservation decodeUnitObservation(const Wire::UnitObservation& w
 		navigation.PlannedRoute = decodeExact<std::vector<Obs::ObservedRoutePoint>>(wire.navigation().has_planned_route(), [&] { return getRoute(wire.navigation().planned_route()); });
 		value.Navigation = std::move(navigation);
 	}
-	if (wire.has_aircraft()) value.Aircraft = Obs::AircraftObservation{decodeExact<bool>(wire.aircraft().has_airborne(), [&] { return wire.aircraft().airborne(); })};
+	if (wire.has_aircraft()) value.Aircraft = Obs::Aircraft{decodeExact<bool>(wire.aircraft().has_airborne(), [&] { return wire.aircraft().airborne(); })};
 	if (wire.has_air_operations()) {
 		const auto& encoded = wire.air_operations();
 		Obs::AirOperationsObservation operations;
@@ -284,7 +284,7 @@ static Obs::UnitObservation decodeUnitObservation(const Wire::UnitObservation& w
 	value.MeasuredAt = decodeExact<Physics::Seconds>(wire.has_measured_at_seconds(), [&] { return Physics::Seconds{wire.measured_at_seconds()}; });
 	for (const auto& contributor : wire.contributors()) {
 		requireId(contributor.observer().value());
-		Obs::ObservationContributor decoded{{contributor.observer().value()}, {}};
+		Obs::Contributor decoded{{contributor.observer().value()}, {}};
 		for (const auto& sensor : contributor.sensors()) decoded.Sensors.push_back({sensor.value()});
 		value.Contributors.push_back(std::move(decoded));
 	}
@@ -368,7 +368,7 @@ ProviderObservation Decode(const Wire::ProviderObservation& wire) {
 	return value;
 }
 
-Wire::OrderRequest Encode(const Orders::Request& value) {
+Wire::OrderRequest Encode(const Orders::ExecutionRequest& value) {
 	Wire::OrderRequest wire;
 	wire.set_session_id(value.SessionId);
 	wire.set_request_id(value.RequestId);
@@ -386,10 +386,10 @@ Wire::OrderRequest Encode(const Orders::Request& value) {
 	return wire;
 }
 
-Orders::Request Decode(const Wire::OrderRequest& wire) {
+Orders::ExecutionRequest Decode(const Wire::OrderRequest& wire) {
 	requireId(wire.observer().value());
 	requireId(wire.observation().value());
-	Orders::Request value;
+	Orders::ExecutionRequest value;
 	value.SessionId = wire.session_id();
 	value.RequestId = wire.request_id();
 	value.Observer = {wire.observer().value()};
@@ -434,7 +434,7 @@ Orders::Result Decode(const Wire::OrderResult& wire) {
 	value.Mode = static_cast<Orders::RouteMode>(wire.route_mode());
 	if (wire.has_spawned_observation_id()) {
 		requireId(wire.spawned_observation_id().value());
-		value.SpawnedObservation = Obs::ObservationId{wire.spawned_observation_id().value()};
+		value.SpawnedObservation = Obs::Id{wire.spawned_observation_id().value()};
 	}
 	if (wire.has_displacement_m()) value.Displacement = Physics::Meters{wire.displacement_m()};
 	for (const auto& point : wire.route_before()) value.RouteBefore.push_back(getRoutePoint(point));

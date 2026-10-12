@@ -14,8 +14,8 @@ Wire::ObserverSnapshot Encode(const World::Api::ObserverSnapshot &);
 World::Api::ObserverSnapshot Decode(const Wire::ObserverSnapshot &);
 Wire::ProviderObservation Encode(const ProviderObservation &);
 ProviderObservation Decode(const Wire::ProviderObservation &);
-Wire::OrderRequest Encode(const Orders::Api::Request &);
-Orders::Api::Request Decode(const Wire::OrderRequest &);
+Wire::OrderRequest Encode(const Orders::Api::ExecutionRequest &);
+Orders::Api::ExecutionRequest Decode(const Wire::OrderRequest &);
 Wire::OrderResult Encode(const Orders::Api::Result &);
 Orders::Api::Result Decode(const Wire::OrderResult &);
 }
