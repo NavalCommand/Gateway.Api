@@ -1,0 +1,229 @@
+syntax = "proto3";
+package navalcommand.gateway.v2;
+option csharp_namespace = "NavalCommand.Gateway.Wire";
+
+// Numeric enums here encode the frozen domain enumerators by their ordinal.
+// Codecs validate their ranges; omission is never a known zero/false value.
+message Empty {}
+message Strings { repeated string values = 1; }
+message ResourceValue {
+  oneof value { uint64 discrete = 1; double continuous = 2; }
+}
+message Position {
+  double latitude_degrees = 1;
+  double longitude_degrees = 2;
+  double elevation_meters = 3;
+}
+message ErrorEllipse {
+  double major_axis_meters = 1;
+  double minor_axis_meters = 2;
+  double orientation_radians = 3;
+}
+message PartialPosition {
+  optional double latitude_degrees = 1;
+  optional double longitude_degrees = 2;
+  optional double elevation_meters = 3;
+  ErrorEllipse error_ellipse = 4;
+}
+message ObservedPosition {
+  oneof value { Position exact = 1; PartialPosition partial = 2; }
+}
+message UnitKinematics {
+  Position position = 1;
+  optional double speed_meters_per_second = 2;
+  optional double heading_radians = 3;
+  optional double course_radians = 4;
+}
+message ObservationKinematics {
+  ObservedPosition position = 1;
+  optional double speed_meters_per_second = 2;
+  optional double heading_radians = 3;
+  optional double course_radians = 4;
+}
+message Aircraft { optional bool airborne = 1; }
+message EquipmentInstance {
+  string type = 1;
+  int32 operational_state = 2;
+  int32 damage = 3;
+  message ResourceInventory { string resource_id = 1; ResourceValue quantity = 2; }
+  ResourceInventory inventory = 4;
+}
+message Unit {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  string faction = 4;
+  UnitKinematics kinematics = 5;
+  repeated EquipmentInstance equipment = 6;
+  Aircraft aircraft = 7;
+}
+message Contributor {
+  string observer_unit_id = 1;
+  repeated string sensors = 2;
+}
+message Observation {
+  string id = 1;
+  string name = 2;
+  string observer_faction = 3;
+  optional string observed_faction = 4;
+  oneof type_resolution { string type = 5; int32 classification = 6; }
+  ObservationKinematics kinematics = 7;
+  Aircraft aircraft = 8;
+  repeated Contributor contributors = 9;
+}
+message Waypoint { Position target = 1; string label = 2; }
+message Navigation { repeated Waypoint route = 1; }
+message AircraftInventory {
+  string type = 1;
+  string squadron = 2;
+  optional uint32 unreserved_count = 3;
+  Strings loadouts = 4;
+}
+message AirOperations {
+  message Inventory { repeated AircraftInventory entries = 1; }
+  Inventory inventory = 1;
+  optional uint32 pending_operations = 2;
+  optional uint32 onboard_count = 3;
+  optional uint32 reserved_count = 4;
+  optional uint32 cooldown_count = 5;
+}
+message Engagement {
+  oneof target { string observation_id = 1; Position position = 2; double bearing_radians = 3; }
+  string equipment_type = 4;
+}
+message Evasion { optional string danger_observation_id = 1; }
+message Operations {
+  oneof activity {
+    Empty idle = 1;
+    Position moving_to_waypoint = 2;
+    Engagement engaging = 3;
+    Evasion evading = 4;
+  }
+  Navigation navigation = 5;
+  AirOperations air_operations = 6;
+}
+message EquipmentFit {
+  string type = 1;
+  message ResourceProvision {
+    string resource_id = 1;
+    ResourceValue capacity = 2;
+    ResourceValue initial_inventory = 3;
+  }
+  ResourceProvision resource = 2;
+}
+message Loadout { string id = 1; repeated EquipmentFit equipment = 2; }
+message UnitType { string id = 1; int32 classification = 2; repeated Loadout loadouts = 3; }
+message Effect {
+  message Sensing { int32 mode = 1; optional double nominal_range_meters = 2; }
+  message Damage { optional int32 guidance = 1; }
+  oneof behavior {
+    Sensing sensing = 1;
+    Damage damage = 2;
+    Empty jamming = 3;
+    Empty deception = 4;
+    Empty communication = 5;
+    Empty storage = 6;
+  }
+}
+message EquipmentOperation {
+  uint32 accepted_targets = 1;
+  int32 invocation = 2;
+  message ResourceRequirement {
+    int32 use = 1;
+    string resource_id = 2;
+    ResourceValue amount = 3;
+  }
+  ResourceRequirement resource = 3;
+}
+message EquipmentType {
+  string id = 1;
+  repeated Effect effects = 2;
+  repeated EquipmentOperation operations = 3;
+}
+message ResourceDefinition {
+  string id = 1;
+  int32 representation = 2;
+  int32 unit = 3;
+  int32 accounting = 4;
+}
+message ResourceDefinitions { repeated ResourceDefinition values = 1; }
+message InfrastructureError {
+  int32 condition = 1;
+  // Explicit portable categories only: empty, generic, system.
+  string cause_category = 2;
+  int32 cause_value = 3;
+}
+message Failure {
+  oneof error {
+    InfrastructureError infrastructure = 1;
+    int32 simulation = 2;
+    int32 faction = 3;
+    int32 equipment = 4;
+  }
+}
+message Result {
+  oneof value {
+    Failure failure = 1;
+    Empty success = 2;
+    Strings ids = 3;
+    Unit unit = 4;
+    Observation observation = 5;
+    Operations operations = 6;
+    UnitType unit_type = 7;
+    EquipmentType equipment_type = 8;
+    ResourceDefinitions resources = 9;
+    int32 alignment = 10;
+    double time_seconds = 11;
+    bool boolean = 12;
+    double compression = 13;
+  }
+}
+// Canonical immutable game-thread publication. Scoped payloads are captured
+// independently from their legitimate sources, never redacted from truth.
+message Publication {
+  string session = 1;
+  uint64 revision = 2;
+  double captured_at_seconds = 3;
+  repeated ScopedPublication views = 4;
+}
+message Scope { oneof kind { Empty omniscient = 1; string faction = 2; } }
+message ScopedPublication {
+  Scope scope = 1;
+  repeated Entry entries = 2;
+}
+message Entry { Query query = 1; Result result = 2; }
+message Query {
+  enum Method {
+    METHOD_UNSPECIFIED = 0;
+    UNIT_IDS = 1;
+    UNIT = 2;
+    OBSERVATION_IDS = 3;
+    OBSERVATION = 4;
+    OPERATIONS = 5;
+    FACTION_IDS = 6;
+    FACTION_ALIGNMENT = 7;
+    UNIT_TYPE_IDS = 8;
+    UNIT_TYPE = 9;
+    EQUIPMENT_TYPE_IDS = 10;
+    EQUIPMENT_TYPE = 11;
+    RESOURCE_IDS = 12;
+    RESOURCE_DEFINITIONS = 13;
+    TIME = 14;
+    PAUSED = 15;
+    CAN_PAUSE = 16;
+    CAN_UNPAUSE = 17;
+    COMPRESSION = 18;
+  }
+  Method method = 1;
+  string id = 2;
+  string second_id = 3;
+}
+message Control {
+  string client = 1;
+  string session = 2;
+  string request = 3;
+  oneof action { bool pause = 4; double compression = 5; Empty disconnected = 6; }
+  // Worker-assigned admission deadline. Engine must check before mutation.
+  int64 expires_unix_milliseconds = 7;
+}
+message ControlResult { string request = 1; Result result = 2; }

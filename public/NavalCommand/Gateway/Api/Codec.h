@@ -1,21 +1,32 @@
 #pragma once
-#include <NavalCommand/Gateway/Api/IProvider.h>
-#include <navalcommand/gateway/v1/provider.pb.h>
 
-#include <vector>
+#include <NavalCommand/Equipment/Api/Type.h>
+#include <NavalCommand/Error/Api/Result.h>
+#include <NavalCommand/Factions/Api/Alignment.h>
+#include <NavalCommand/Observations/Api/Instance.h>
+#include <NavalCommand/Operations/Api/UnitState.h>
+#include <NavalCommand/Resources/Api/Definition.h>
+#include <NavalCommand/Units/Api/Instance.h>
+#include <NavalCommand/Units/Api/Type.h>
+#include <navalcommand/gateway/v2/domain.pb.h>
 
-namespace NavalCommand::Gateway::Api {
-namespace Wire = navalcommand::gateway::v1;
-Wire::OrderEligibilityState Encode(const std::vector<Orders::Api::Eligibility> &);
-std::vector<Orders::Api::Eligibility> Decode(const Wire::OrderEligibilityState &);
-Wire::OrderDiscovery Encode(const Orders::Api::OrderAvailability &);
-Orders::Api::OrderAvailability Decode(const Wire::OrderDiscovery &);
-Wire::ObserverSnapshot Encode(const World::Api::ObserverSnapshot &);
-World::Api::ObserverSnapshot Decode(const Wire::ObserverSnapshot &);
-Wire::ProviderObservation Encode(const ProviderObservation &);
-ProviderObservation Decode(const Wire::ProviderObservation &);
-Wire::OrderRequest Encode(const Orders::Api::ExecutionRequest &);
-Orders::Api::ExecutionRequest Decode(const Wire::OrderRequest &);
-Wire::OrderResult Encode(const Orders::Api::Result &);
-Orders::Api::Result Decode(const Wire::OrderResult &);
+namespace NavalCommand::Gateway::Api
+{
+	namespace Wire = navalcommand::gateway::v2;
+	Wire::Position Encode(const Physics::Api::Position& value);
+	Physics::Api::Position Decode(const Wire::Position& value);
+	Wire::Unit Encode(const Units::Api::Instance& value);
+	Units::Api::Instance Decode(const Wire::Unit& value);
+	Wire::Observation Encode(const Observations::Api::Instance& value);
+	Observations::Api::Instance Decode(const Wire::Observation& value);
+	Wire::Operations Encode(const Operations::Api::UnitState& value);
+	Operations::Api::UnitState Decode(const Wire::Operations& value);
+	Wire::UnitType Encode(const Units::Api::Type& value);
+	Units::Api::Type Decode(const Wire::UnitType& value);
+	Wire::EquipmentType Encode(const Equipment::Api::Type& value);
+	Equipment::Api::Type Decode(const Wire::EquipmentType& value);
+	Wire::ResourceDefinition Encode(const Resources::Api::Definition& value);
+	Resources::Api::Definition Decode(const Wire::ResourceDefinition& value);
+	Wire::InfrastructureError Encode(const Error::Api::Error& value);
+	Error::Api::Error Decode(const Wire::InfrastructureError& value);
 }
