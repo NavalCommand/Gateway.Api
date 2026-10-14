@@ -1,8 +1,8 @@
 #pragma once
 
+#include <NavalCommand/Classification/Api/Alignment.h>
 #include <NavalCommand/Equipment/Api/Type.h>
 #include <NavalCommand/Error/Api/Result.h>
-#include <NavalCommand/Factions/Api/Alignment.h>
 #include <NavalCommand/Observations/Api/Instance.h>
 #include <NavalCommand/Operations/Api/UnitState.h>
 #include <NavalCommand/Resources/Api/Definition.h>
