@@ -13,15 +13,21 @@ int main(int argc, char** argv)
 	{
 		std::ifstream input{argv[1], std::ios::binary};
 		Wire::Publication publication;
-		if (!publication.ParseFromIstream(&input) || publication.views_size() != 1 || publication.views(0).entries_size() != 4)
+		if (!publication.ParseFromIstream(&input) || publication.views_size() != 1 || publication.views(0).entries_size() != 9)
 		{
 			return 3;
 		}
 		auto& view = *publication.mutable_views(0);
-		*view.mutable_entries(0)->mutable_result()->mutable_observation() = Encode(Decode(view.entries(0).result().observation()));
-		*view.mutable_entries(1)->mutable_result()->mutable_operations() = Encode(Decode(view.entries(1).result().operations()));
-		*view.mutable_entries(2)->mutable_result()->mutable_failure()->mutable_infrastructure() = Encode(Decode(view.entries(2).result().failure().infrastructure()));
-		*view.mutable_entries(3)->mutable_result()->mutable_unit() = Encode(Decode(view.entries(3).result().unit()));
+		for (int index = 0; index < 5; ++index)
+		{
+			auto* result = view.mutable_entries(index)->mutable_result();
+			auto domainObservation = Decode(result->observation());
+			*result->mutable_observation() = Encode(domainObservation);
+		}
+		*view.mutable_entries(5)->mutable_result()->mutable_operations() = Encode(Decode(view.entries(5).result().operations()));
+		*view.mutable_entries(6)->mutable_result()->mutable_failure()->mutable_infrastructure() = Encode(Decode(view.entries(6).result().failure().infrastructure()));
+		*view.mutable_entries(7)->mutable_result()->mutable_unit() = Encode(Decode(view.entries(7).result().unit()));
+		*view.mutable_entries(8)->mutable_result()->mutable_unit_type() = Encode(Decode(view.entries(8).result().unit_type()));
 		std::ofstream output{argv[2], std::ios::binary};
 		return publication.SerializeToOstream(&output) ? 0 : 4;
 	}

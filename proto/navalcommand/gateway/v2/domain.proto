@@ -56,6 +56,8 @@ message Unit {
   UnitKinematics kinematics = 5;
   repeated EquipmentInstance equipment = 6;
   Aircraft aircraft = 7;
+  string current_loadout = 8;
+  bool is_destroyed = 9;
 }
 message Contributor {
   string observer_unit_id = 1;
@@ -66,10 +68,17 @@ message Observation {
   string name = 2;
   string observer_faction = 3;
   optional string observed_faction = 4;
-  oneof type_resolution { string type = 5; int32 classification = 6; }
+  oneof type_resolution {
+    string type = 5;
+    int32 category = 6;
+    int32 sub_category = 10;
+    int32 dimension = 11;
+  }
   ObservationKinematics kinematics = 7;
   Aircraft aircraft = 8;
   repeated Contributor contributors = 9;
+  optional string current_loadout = 12;
+  optional bool is_destroyed = 13;
 }
 message Waypoint { Position target = 1; string label = 2; }
 message Navigation { repeated Waypoint route = 1; }
@@ -111,8 +120,21 @@ message EquipmentFit {
   }
   ResourceProvision resource = 2;
 }
-message Loadout { string id = 1; repeated EquipmentFit equipment = 2; }
-message UnitType { string id = 1; int32 classification = 2; repeated Loadout loadouts = 3; }
+message Loadout {
+  string id = 1;
+  repeated EquipmentFit equipment = 2;
+  repeated int32 roles = 3;
+  optional string display_name = 4;
+}
+message UnitType {
+  string id = 1;
+  optional int32 sub_category = 2;
+  repeated Loadout loadouts = 3;
+  repeated int32 platform_roles = 4;
+  optional string display_name = 5;
+  optional string alternative_display_name = 6;
+  optional int32 primary_platform_role = 7;
+}
 message Effect {
   message Sensing { int32 mode = 1; optional double nominal_range_meters = 2; }
   message Damage { optional int32 guidance = 1; }
@@ -139,6 +161,8 @@ message EquipmentType {
   string id = 1;
   repeated Effect effects = 2;
   repeated EquipmentOperation operations = 3;
+  optional string display_name = 4;
+  optional string alternative_display_name = 5;
 }
 message ResourceDefinition {
   string id = 1;

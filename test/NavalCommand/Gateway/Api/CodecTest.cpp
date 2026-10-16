@@ -1,8 +1,34 @@
 #include <NavalCommand/Gateway/Api/Codec.h>
 #include <gtest/gtest.h>
+#include <utility>
 
 namespace NavalCommand::Gateway::Api
 {
+	TEST(CodecTest, PrimaryPlatformRolePreservesPresenceAndRejectsInvalidValues)
+	{
+		Units::Api::Type type{};
+		type.Id = {"test"};
+		type.UnitSubCategory = Classification::Api::SubCategory::FixedWingAircraft;
+		EXPECT_FALSE(Decode(Encode(type)).PrimaryPlatformRole);
+		type.PlatformRoles = {Classification::Api::Role::AirSuperiority, Classification::Api::Role::ElectronicWarfare};
+		type.PrimaryPlatformRole = Classification::Api::Role::ElectronicWarfare;
+		EXPECT_EQ(Decode(Encode(type)).PrimaryPlatformRole, type.PrimaryPlatformRole);
+		// Zero is a valid role, and must retain presence rather than becoming absent.
+		type.PrimaryPlatformRole = Classification::Api::Role::AirSuperiority;
+		EXPECT_EQ(Decode(Encode(type)).PrimaryPlatformRole, type.PrimaryPlatformRole);
+		auto wire = Encode(type);
+		wire.set_primary_platform_role(999);
+		EXPECT_THROW(Decode(wire), std::invalid_argument);
+		wire.set_primary_platform_role(static_cast<int>(Classification::Api::Role::Transport));
+		EXPECT_THROW(Decode(wire), std::invalid_argument);
+		type.PrimaryPlatformRole = Classification::Api::Role::Transport;
+		EXPECT_THROW(Encode(type), std::invalid_argument);
+		type.UnitSubCategory = Classification::Api::SubCategory::Cruiser;
+		type.PrimaryPlatformRole = Classification::Api::Role::GuidedMissile;
+		type.PlatformRoles.push_back(*type.PrimaryPlatformRole);
+		EXPECT_EQ(Decode(Encode(type)).PrimaryPlatformRole, type.PrimaryPlatformRole);
+	}
+
 	TEST(Codec, UnknownAndKnownFalseRemainDistinct)
 	{
 		Observations::Api::Instance source{};
@@ -12,11 +38,19 @@ namespace NavalCommand::Gateway::Api
 		source.Aircraft.emplace();
 		auto unknown = Decode(Encode(source));
 		EXPECT_FALSE(unknown.Aircraft->Airborne.IsKnown());
+		EXPECT_FALSE(unknown.IsDestroyed.IsKnown());
+		EXPECT_FALSE(unknown.CurrentLoadout.IsKnown());
 		source.Aircraft->Airborne = decltype(source.Aircraft->Airborne)::Known(false);
+		source.IsDestroyed = decltype(source.IsDestroyed)::Known(false);
+		source.CurrentLoadout = decltype(source.CurrentLoadout)::Known({"empty"});
 		source.Kinematics.Speed = decltype(source.Kinematics.Speed)::Known({0});
 		auto known = Decode(Encode(source));
 		ASSERT_TRUE(known.Aircraft->Airborne.IsKnown());
 		EXPECT_FALSE(known.Aircraft->Airborne.Value());
+		ASSERT_TRUE(known.IsDestroyed.IsKnown());
+		EXPECT_FALSE(known.IsDestroyed.Value());
+		ASSERT_TRUE(known.CurrentLoadout.IsKnown());
+		EXPECT_EQ(known.CurrentLoadout.Value().Value, "empty");
 		EXPECT_EQ(known.Kinematics.Speed.Value().Value, 0);
 		EXPECT_EQ(known.Identity.Value, "contact-7");
 		EXPECT_TRUE(std::holds_alternative<Observations::Api::PartiallyLocalizedPosition>(known.Kinematics.Position));
@@ -29,14 +63,42 @@ namespace NavalCommand::Gateway::Api
 		position.Latitude = Physics::Api::Degrees{0};
 		position.ErrorEllipse = Observations::Api::ObservedErrorEllipse{{100}, {20}, {1}};
 		source.Kinematics.Position = position;
-		source.Type = decltype(source.Type)::Known(Units::Api::Classification::Submarine);
+		source.Type = decltype(source.Type)::Known<Classification::Api::SubCategory>(Classification::Api::SubCategory::Submarine);
 		auto decoded = Decode(Encode(source));
 		const auto& partial = std::get<Observations::Api::PartiallyLocalizedPosition>(decoded.Kinematics.Position);
 		ASSERT_TRUE(partial.Latitude);
 		EXPECT_EQ(partial.Latitude->Value, 0);
 		EXPECT_FALSE(partial.Longitude);
 		EXPECT_EQ(partial.ErrorEllipse->MajorAxis.Value, 100);
-		EXPECT_EQ(*decoded.Type.GetIf<Units::Api::Classification>(), Units::Api::Classification::Submarine);
+		EXPECT_EQ(*decoded.Type.GetIf<Classification::Api::SubCategory>(), Classification::Api::SubCategory::Submarine);
+	}
+
+	TEST(Codec, ClassificationResolutionsRoundTripWithoutPromotion)
+	{
+		Observations::Api::Instance source{};
+		source.Kinematics.Position = Observations::Api::PartiallyLocalizedPosition{};
+
+		source.Type = decltype(source.Type)::Known<Units::Api::TypeId>({"wp_ss_kilo"});
+		auto typeId = Decode(Encode(source));
+		ASSERT_NE(typeId.Type.GetIf<Units::Api::TypeId>(), nullptr);
+		EXPECT_EQ(typeId.Type.GetIf<Classification::Api::SubCategory>(), nullptr);
+
+		source.Type = decltype(source.Type)::Known<Classification::Api::SubCategory>(Classification::Api::SubCategory::Whale);
+		auto subCategory = Decode(Encode(source));
+		EXPECT_EQ(*subCategory.Type.GetIf<Classification::Api::SubCategory>(), Classification::Api::SubCategory::Whale);
+		EXPECT_EQ(subCategory.Type.GetIf<Classification::Api::Category>(), nullptr);
+
+		source.Type = decltype(source.Type)::Known<Classification::Api::Category>(Classification::Api::Category::SeaAnimal);
+		auto category = Decode(Encode(source));
+		EXPECT_EQ(*category.Type.GetIf<Classification::Api::Category>(), Classification::Api::Category::SeaAnimal);
+		EXPECT_EQ(category.Type.GetIf<Classification::Api::Dimension>(), nullptr);
+
+		source.Type = decltype(source.Type)::Known<Classification::Api::Dimension>(Classification::Api::Dimension::Other);
+		auto dimension = Decode(Encode(source));
+		EXPECT_EQ(*dimension.Type.GetIf<Classification::Api::Dimension>(), Classification::Api::Dimension::Other);
+
+		source.Type = decltype(source.Type)::Unknown();
+		EXPECT_TRUE(Decode(Encode(source)).Type.IsUnknown());
 	}
 
 	TEST(Codec, KnownEmptyOperationsAndInventoryStayPresent)
@@ -63,7 +125,16 @@ namespace NavalCommand::Gateway::Api
 
 	TEST(Codec, EquipmentResourcesRemainOptionalAndZeroIsPresent)
 	{
+		Units::Api::Type fixedWing{};
+		fixedWing.Id = {"aircraft/f-4"};
+		fixedWing.UnitSubCategory = Classification::Api::SubCategory::FixedWingAircraft;
+		const auto fixedWingWire = Encode(fixedWing);
+		ASSERT_TRUE(fixedWingWire.has_sub_category());
+		EXPECT_EQ(Decode(fixedWingWire).UnitSubCategory, Classification::Api::SubCategory::FixedWingAircraft);
+
 		Units::Api::Instance source{};
+		source.CurrentLoadout = {"empty"};
+		source.IsDestroyed = true;
 		source.Equipment.push_back({{"radar"}, Equipment::Api::OperationalState::Active, Equipment::Api::Damage::Intact, {}});
 		source.Equipment.push_back(
 			{{"launcher"}, Equipment::Api::OperationalState::Ready, Equipment::Api::Damage::Intact, Equipment::Api::Instance::ResourceInventory{{"missiles"}, std::uint64_t{0}}});
@@ -73,15 +144,30 @@ namespace NavalCommand::Gateway::Api
 		ASSERT_TRUE(decoded.Equipment[1].Inventory);
 		EXPECT_EQ(decoded.Equipment[1].Inventory->ResourceId.Value, "missiles");
 		EXPECT_EQ(std::get<std::uint64_t>(decoded.Equipment[1].Inventory->Quantity), 0u);
+		EXPECT_EQ(decoded.CurrentLoadout.Value, "empty");
+		EXPECT_TRUE(decoded.IsDestroyed);
 
-		Units::Api::Type type{{"ship"}, Units::Api::Classification::SurfaceVessel, {}};
-		type.Loadouts.push_back({{"default"}, {{{"radar"}, {}}, {{"launcher"}, Equipment::Api::Fit::ResourceProvision{{"missiles"}, std::uint64_t{8}, std::uint64_t{0}}}}});
+		Units::Api::Type type{};
+		type.Id = {"ship"};
+		type.UnitSubCategory = Classification::Api::SubCategory::SurfaceVessel;
+		type.PlatformRoles.push_back(Classification::Api::Role::SurfaceWarfare);
+		Equipment::Api::Loadout loadout{};
+		loadout.Id = {"default"};
+		loadout.Equipment = {{{"radar"}, {}}, {{"launcher"}, Equipment::Api::Fit::ResourceProvision{{"missiles"}, std::uint64_t{8}, std::uint64_t{0}}}};
+		loadout.Roles.push_back(Classification::Api::Role::AntiSubmarineWarfare);
+		type.Loadouts.push_back(std::move(loadout));
 		auto decodedType = Decode(Encode(type));
+		EXPECT_EQ(decodedType.UnitSubCategory, Classification::Api::SubCategory::SurfaceVessel);
+		ASSERT_EQ(decodedType.PlatformRoles.size(), 1);
+		EXPECT_EQ(decodedType.PlatformRoles[0], Classification::Api::Role::SurfaceWarfare);
+		ASSERT_EQ(decodedType.Loadouts[0].Roles.size(), 1);
+		EXPECT_EQ(decodedType.Loadouts[0].Roles[0], Classification::Api::Role::AntiSubmarineWarfare);
 		EXPECT_FALSE(decodedType.Loadouts[0].Equipment[0].Resource);
 		ASSERT_TRUE(decodedType.Loadouts[0].Equipment[1].Resource);
 		EXPECT_EQ(std::get<std::uint64_t>(decodedType.Loadouts[0].Equipment[1].Resource->InitialInventory), 0u);
 
-		Equipment::Api::Type equipment{{"radar"}, {}, {}};
+		Equipment::Api::Type equipment{};
+		equipment.Id = {"radar"};
 		equipment.Operations.push_back({Equipment::Api::Operation::TargetInput::NoTarget, Equipment::Api::Operation::Action::SetActive, {}});
 		equipment.Operations.push_back({Equipment::Api::Operation::TargetInput::Unit,
 										Equipment::Api::Operation::Action::Use,
@@ -110,8 +196,18 @@ namespace NavalCommand::Gateway::Api
 	TEST(Codec, RejectsMalformedPositionAndEnumeration)
 	{
 		EXPECT_THROW(Decode(Wire::Observation{}), std::invalid_argument);
+		EXPECT_THROW(Decode(Wire::UnitType{}), std::invalid_argument);
 		Wire::UnitType type;
-		type.set_classification(999);
+		type.set_sub_category(999);
 		EXPECT_THROW(Decode(type), std::invalid_argument);
+
+		Wire::UnitType invalidRole;
+		invalidRole.set_sub_category(static_cast<int>(Classification::Api::SubCategory::Other));
+		invalidRole.add_platform_roles(999);
+		EXPECT_THROW(Decode(invalidRole), std::invalid_argument);
+
+		Wire::Observation invalidCategory;
+		invalidCategory.set_category(999);
+		EXPECT_THROW(Decode(invalidCategory), std::invalid_argument);
 	}
 }

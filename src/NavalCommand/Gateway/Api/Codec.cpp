@@ -1,4 +1,5 @@
 #include <NavalCommand/Gateway/Api/Codec.h>
+#include <algorithm>
 #include <stdexcept>
 
 namespace NavalCommand::Gateway::Api
@@ -12,6 +13,16 @@ namespace NavalCommand::Gateway::Api
 				throw std::invalid_argument("invalid_enum");
 			}
 			return static_cast<Enumeration>(value);
+		}
+
+		template <class Enumeration> int EncodeEnum(Enumeration value, int maximum)
+		{
+			const int encoded = static_cast<int>(value);
+			if (encoded < 0 || encoded > maximum)
+			{
+				throw std::invalid_argument("invalid_enum");
+			}
+			return encoded;
 		}
 
 		Wire::ResourceValue EncodeResource(const Resources::Api::Value& value)
@@ -62,6 +73,8 @@ namespace NavalCommand::Gateway::Api
 		result.set_id(value.Identity.Value);
 		result.set_name(value.Name);
 		result.set_type(value.Type.Value);
+		result.set_current_loadout(value.CurrentLoadout.Value);
+		result.set_is_destroyed(value.IsDestroyed);
 		result.set_faction(value.Faction.Value);
 		auto& kinematics = *result.mutable_kinematics();
 		if (value.Kinematics.Position)
@@ -110,6 +123,8 @@ namespace NavalCommand::Gateway::Api
 		result.Identity.Value = value.id();
 		result.Name = value.name();
 		result.Type.Value = value.type();
+		result.CurrentLoadout.Value = value.current_loadout();
+		result.IsDestroyed = value.is_destroyed();
 		result.Faction.Value = value.faction();
 		const auto& kinematics = value.kinematics();
 		if (kinematics.has_position())
@@ -164,9 +179,25 @@ namespace NavalCommand::Gateway::Api
 		{
 			result.set_type(type->Value);
 		}
-		if (auto classification = value.Type.GetIf<Units::Api::Classification>())
+		if (auto subCategory = value.Type.GetIf<Classification::Api::SubCategory>())
 		{
-			result.set_classification(static_cast<int>(*classification));
+			result.set_sub_category(EncodeEnum(*subCategory, static_cast<int>(Classification::Api::SubCategory::Other)));
+		}
+		else if (auto category = value.Type.GetIf<Classification::Api::Category>())
+		{
+			result.set_category(EncodeEnum(*category, static_cast<int>(Classification::Api::Category::Other)));
+		}
+		else if (auto dimension = value.Type.GetIf<Classification::Api::Dimension>())
+		{
+			result.set_dimension(EncodeEnum(*dimension, static_cast<int>(Classification::Api::Dimension::Other)));
+		}
+		if (value.CurrentLoadout.IsKnown())
+		{
+			result.set_current_loadout(value.CurrentLoadout.Value().Value);
+		}
+		if (value.IsDestroyed.IsKnown())
+		{
+			result.set_is_destroyed(value.IsDestroyed.Value());
 		}
 		auto& kinematics = *result.mutable_kinematics();
 		auto& position = *kinematics.mutable_position();
@@ -246,9 +277,26 @@ namespace NavalCommand::Gateway::Api
 		{
 			result.Type = decltype(result.Type)::Known(Units::Api::TypeId{value.type()});
 		}
-		if (value.has_classification())
+		if (value.has_sub_category())
 		{
-			result.Type = decltype(result.Type)::Known(DecodeEnum<Units::Api::Classification>(value.classification(), 6));
+			result.Type =
+				decltype(result.Type)::Known(DecodeEnum<Classification::Api::SubCategory>(value.sub_category(), static_cast<int>(Classification::Api::SubCategory::Other)));
+		}
+		else if (value.has_category())
+		{
+			result.Type = decltype(result.Type)::Known(DecodeEnum<Classification::Api::Category>(value.category(), static_cast<int>(Classification::Api::Category::Other)));
+		}
+		else if (value.has_dimension())
+		{
+			result.Type = decltype(result.Type)::Known(DecodeEnum<Classification::Api::Dimension>(value.dimension(), static_cast<int>(Classification::Api::Dimension::Other)));
+		}
+		if (value.has_current_loadout())
+		{
+			result.CurrentLoadout = decltype(result.CurrentLoadout)::Known({value.current_loadout()});
+		}
+		if (value.has_is_destroyed())
+		{
+			result.IsDestroyed = decltype(result.IsDestroyed)::Known(value.is_destroyed());
 		}
 		const auto& kinematics = value.kinematics();
 		const auto& position = kinematics.position();
@@ -505,11 +553,39 @@ namespace NavalCommand::Gateway::Api
 	{
 		Wire::UnitType result;
 		result.set_id(value.Id.Value);
-		result.set_classification(static_cast<int>(value.UnitClassification));
+		result.set_sub_category(EncodeEnum(value.UnitSubCategory, static_cast<int>(Classification::Api::SubCategory::Other)));
+		if (value.DisplayName)
+		{
+			result.set_display_name(*value.DisplayName);
+		}
+		if (value.AlternativeDisplayName)
+		{
+			result.set_alternative_display_name(*value.AlternativeDisplayName);
+		}
+		if (value.PrimaryPlatformRole)
+		{
+			if (std::ranges::find(value.PlatformRoles, *value.PrimaryPlatformRole) == value.PlatformRoles.end())
+			{
+				throw std::invalid_argument("primary_platform_role_not_in_platform_roles");
+			}
+			result.set_primary_platform_role(EncodeEnum(*value.PrimaryPlatformRole, static_cast<int>(Classification::Api::Role::GuidedMissile)));
+		}
+		for (const auto role : value.PlatformRoles)
+		{
+			result.add_platform_roles(EncodeEnum(role, static_cast<int>(Classification::Api::Role::GuidedMissile)));
+		}
 		for (const auto& loadout : value.Loadouts)
 		{
 			auto& encoded = *result.add_loadouts();
 			encoded.set_id(loadout.Id.Value);
+			if (loadout.DisplayName)
+			{
+				encoded.set_display_name(*loadout.DisplayName);
+			}
+			for (const auto role : loadout.Roles)
+			{
+				encoded.add_roles(EncodeEnum(role, static_cast<int>(Classification::Api::Role::GuidedMissile)));
+			}
 			for (const auto& fit : loadout.Equipment)
 			{
 				auto& equipment = *encoded.add_equipment();
@@ -527,10 +603,45 @@ namespace NavalCommand::Gateway::Api
 
 	Units::Api::Type Decode(const Wire::UnitType& value)
 	{
-		Units::Api::Type result{{value.id()}, DecodeEnum<Units::Api::Classification>(value.classification(), 6), {}};
+		if (!value.has_sub_category())
+		{
+			throw std::invalid_argument("missing_unit_sub_category");
+		}
+		Units::Api::Type result{};
+		result.Id = {value.id()};
+		if (value.has_display_name())
+		{
+			result.DisplayName = value.display_name();
+		}
+		if (value.has_alternative_display_name())
+		{
+			result.AlternativeDisplayName = value.alternative_display_name();
+		}
+		result.UnitSubCategory = DecodeEnum<Classification::Api::SubCategory>(value.sub_category(), static_cast<int>(Classification::Api::SubCategory::Other));
+		for (const int role : value.platform_roles())
+		{
+			result.PlatformRoles.push_back(DecodeEnum<Classification::Api::Role>(role, static_cast<int>(Classification::Api::Role::GuidedMissile)));
+		}
+		if (value.has_primary_platform_role())
+		{
+			result.PrimaryPlatformRole = DecodeEnum<Classification::Api::Role>(value.primary_platform_role(), static_cast<int>(Classification::Api::Role::GuidedMissile));
+			if (std::ranges::find(result.PlatformRoles, *result.PrimaryPlatformRole) == result.PlatformRoles.end())
+			{
+				throw std::invalid_argument("primary_platform_role_not_in_platform_roles");
+			}
+		}
 		for (const auto& loadout : value.loadouts())
 		{
-			Equipment::Api::Loadout decoded{{loadout.id()}, {}};
+			Equipment::Api::Loadout decoded{};
+			decoded.Id = {loadout.id()};
+			if (loadout.has_display_name())
+			{
+				decoded.DisplayName = loadout.display_name();
+			}
+			for (const int role : loadout.roles())
+			{
+				decoded.Roles.push_back(DecodeEnum<Classification::Api::Role>(role, static_cast<int>(Classification::Api::Role::GuidedMissile)));
+			}
 			for (const auto& fit : loadout.equipment())
 			{
 				Equipment::Api::Fit equipment{{fit.type()}, {}};
@@ -550,6 +661,14 @@ namespace NavalCommand::Gateway::Api
 	{
 		Wire::EquipmentType result;
 		result.set_id(value.Id.Value);
+		if (value.DisplayName)
+		{
+			result.set_display_name(*value.DisplayName);
+		}
+		if (value.AlternativeDisplayName)
+		{
+			result.set_alternative_display_name(*value.AlternativeDisplayName);
+		}
 		for (const auto& effect : value.Effects)
 		{
 			auto& encoded = *result.add_effects();
@@ -604,7 +723,16 @@ namespace NavalCommand::Gateway::Api
 
 	Equipment::Api::Type Decode(const Wire::EquipmentType& value)
 	{
-		Equipment::Api::Type result{{value.id()}, {}, {}};
+		Equipment::Api::Type result{};
+		result.Id = {value.id()};
+		if (value.has_display_name())
+		{
+			result.DisplayName = value.display_name();
+		}
+		if (value.has_alternative_display_name())
+		{
+			result.AlternativeDisplayName = value.alternative_display_name();
+		}
 		for (const auto& effect : value.effects())
 		{
 			Equipment::Api::Effect decoded{};

@@ -3,15 +3,12 @@ using NavalCommand.Gateway.Wire;
 using System;
 using System.IO;
 
-if (args.Length != 2) { return 2; }
-if (args[0] == "write")
+static Observation CreateObservation(string id)
 {
-    var publication = new Publication { Session = "managed-fixture", Revision = 7, CapturedAtSeconds = 42 };
-    var scope = new ScopedPublication { Scope = new Scope { Faction = "blue" } };
-    var observation = new Observation
+    return new Observation
     {
-        Id = "contact", ObserverFaction = "blue", Classification = 2,
-        Aircraft = new Aircraft { Airborne = false },
+        Id = id,
+        ObserverFaction = "blue",
         Kinematics = new ObservationKinematics
         {
             SpeedMetersPerSecond = 0,
@@ -20,60 +17,179 @@ if (args[0] == "write")
                 Partial = new PartialPosition
                 {
                     LatitudeDegrees = 0,
-                    ErrorEllipse = new ErrorEllipse { MajorAxisMeters = 1200, MinorAxisMeters = 300, OrientationRadians = 0.5 }
+                    ErrorEllipse = new ErrorEllipse
+                    {
+                        MajorAxisMeters = 1200,
+                        MinorAxisMeters = 300,
+                        OrientationRadians = 0.5
+                    }
                 }
             }
         }
     };
-    scope.Entries.Add(new Entry { Query = new Query { Method = Query.Types.Method.Observation, Id = "contact" }, Result = new Result { Observation = observation } });
-    scope.Entries.Add(new Entry { Query = new Query { Method = Query.Types.Method.Operations, Id = "own" }, Result = new Result
+}
+
+if (args.Length != 2)
+{
+    return 2;
+}
+
+if (args[0] == "write")
+{
+    var publication = new Publication
     {
-        Operations = new Operations
+        Session = "managed-fixture",
+        Revision = 7,
+        CapturedAtSeconds = 42
+    };
+    var scope = new ScopedPublication { Scope = new Scope { Faction = "blue" } };
+
+    var exactType = CreateObservation("contact-type");
+    exactType.Type = "frigate";
+    exactType.Aircraft = new Aircraft { Airborne = false };
+    exactType.CurrentLoadout = "empty";
+    exactType.IsDestroyed = false;
+
+    var subCategory = CreateObservation("contact-subcategory");
+    subCategory.SubCategory = 35;
+
+    var category = CreateObservation("contact-category");
+    category.Category = 12;
+
+    var dimension = CreateObservation("contact-dimension");
+    dimension.Dimension = 5;
+
+    var unknown = CreateObservation("contact-unknown");
+
+    foreach (var observation in new[] { exactType, subCategory, category, dimension, unknown })
+    {
+        scope.Entries.Add(new Entry
         {
-            Idle = new Empty(), Navigation = new Navigation(),
-            AirOperations = new AirOperations { Inventory = new AirOperations.Types.Inventory(), OnboardCount = 0 }
-        }
-    } });
-    scope.Entries.Add(new Entry { Query = new Query { Method = Query.Types.Method.EquipmentType, Id = "missing" }, Result = new Result
+            Query = new Query { Method = Query.Types.Method.Observation, Id = observation.Id },
+            Result = new Result { Observation = observation }
+        });
+    }
+
+    scope.Entries.Add(new Entry
     {
-        Failure = new Failure { Infrastructure = new InfrastructureError { Condition = 5, CauseCategory = "generic", CauseValue = 13 } }
-    } });
-    publication.Views.Add(scope);
-    var unit = new Unit { Id = "own", Faction = "blue" };
+        Query = new Query { Method = Query.Types.Method.Operations, Id = "own" },
+        Result = new Result
+        {
+            Operations = new Operations
+            {
+                Idle = new Empty(),
+                Navigation = new Navigation(),
+                AirOperations = new AirOperations
+                {
+                    Inventory = new AirOperations.Types.Inventory(),
+                    OnboardCount = 0
+                }
+            }
+        }
+    });
+
+    scope.Entries.Add(new Entry
+    {
+        Query = new Query { Method = Query.Types.Method.EquipmentType, Id = "missing" },
+        Result = new Result
+        {
+            Failure = new Failure
+            {
+                Infrastructure = new InfrastructureError
+                {
+                    Condition = 5,
+                    CauseCategory = "generic",
+                    CauseValue = 13
+                }
+            }
+        }
+    });
+
+    var unit = new Unit
+    {
+        Id = "own",
+        Faction = "blue",
+        CurrentLoadout = "empty",
+        IsDestroyed = false
+    };
     unit.Equipment.Add(new EquipmentInstance { Type = "radar", OperationalState = 1 });
     unit.Equipment.Add(new EquipmentInstance
     {
-        Type = "launcher", Inventory = new EquipmentInstance.Types.ResourceInventory
+        Type = "launcher",
+        Inventory = new EquipmentInstance.Types.ResourceInventory
         {
-            ResourceId = "missiles", Quantity = new ResourceValue { Discrete = 0 }
+            ResourceId = "missiles",
+            Quantity = new ResourceValue { Discrete = 0 }
         }
     });
-    scope.Entries.Add(new Entry { Query = new Query { Method = Query.Types.Method.Unit, Id = "own" }, Result = new Result { Unit = unit } });
+    scope.Entries.Add(new Entry
+    {
+        Query = new Query { Method = Query.Types.Method.Unit, Id = "own" },
+        Result = new Result { Unit = unit }
+    });
+
+    var unitType = new UnitType { Id = "ship", SubCategory = 6, PrimaryPlatformRole = 15 };
+    unitType.PlatformRoles.Add(15);
+    var loadout = new Loadout { Id = "standard" };
+    loadout.Roles.Add(5);
+    unitType.Loadouts.Add(loadout);
+    scope.Entries.Add(new Entry
+    {
+        Query = new Query { Method = Query.Types.Method.UnitType, Id = "ship" },
+        Result = new Result { UnitType = unitType }
+    });
+
+    publication.Views.Add(scope);
     File.WriteAllBytes(args[1], publication.ToByteArray());
     return 0;
 }
+
 if (args[0] == "read")
 {
     var publication = Publication.Parser.ParseFrom(File.ReadAllBytes(args[1]));
-    var observation = publication.Views[0].Entries[0].Result.Observation;
-    var position = observation.Kinematics.Position.Partial;
-    var operations = publication.Views[0].Entries[1].Result.Operations;
-    var failure = publication.Views[0].Entries[2].Result.Failure.Infrastructure;
-    var equipment = publication.Views[0].Entries[3].Result.Unit.Equipment;
+    var entries = publication.Views[0].Entries;
+    var observations = new[]
+    {
+        entries[0].Result.Observation,
+        entries[1].Result.Observation,
+        entries[2].Result.Observation,
+        entries[3].Result.Observation,
+        entries[4].Result.Observation
+    };
+    var operations = entries[5].Result.Operations;
+    var failure = entries[6].Result.Failure.Infrastructure;
+    var unit = entries[7].Result.Unit;
+    var unitType = entries[8].Result.UnitType;
+    var position = observations[0].Kinematics.Position.Partial;
+
     if (publication.Session != "managed-fixture" || publication.Revision != 7 || publication.Views[0].Scope.Faction != "blue"
-        || observation.Id != "contact" || observation.HasObservedFaction || observation.HasType || !observation.HasClassification
-        || !observation.Aircraft.HasAirborne || observation.Aircraft.Airborne
-        || !observation.Kinematics.HasSpeedMetersPerSecond || observation.Kinematics.SpeedMetersPerSecond != 0
-        || observation.Kinematics.HasHeadingRadians || !position.HasLatitudeDegrees || position.HasLongitudeDegrees
+        || observations[0].Id != "contact-type" || observations[0].TypeResolutionCase.ToString() != "Type"
+        || observations[1].TypeResolutionCase.ToString() != "SubCategory" || observations[1].SubCategory != 35
+        || observations[2].TypeResolutionCase.ToString() != "Category" || observations[2].Category != 12
+        || observations[3].TypeResolutionCase.ToString() != "Dimension" || observations[3].Dimension != 5
+        || observations[4].TypeResolutionCase.ToString() != "None"
+        || !observations[0].HasCurrentLoadout || observations[0].CurrentLoadout != "empty"
+        || !observations[0].HasIsDestroyed || observations[0].IsDestroyed
+        || observations[1].HasCurrentLoadout || observations[1].HasIsDestroyed
+        || !observations[0].Aircraft.HasAirborne || observations[0].Aircraft.Airborne
+        || !observations[0].Kinematics.HasSpeedMetersPerSecond || observations[0].Kinematics.SpeedMetersPerSecond != 0
+        || observations[0].Kinematics.HasHeadingRadians || !position.HasLatitudeDegrees || position.HasLongitudeDegrees
         || position.ErrorEllipse.MajorAxisMeters != 1200 || operations.Navigation == null || operations.AirOperations.Inventory == null
         || !operations.AirOperations.HasOnboardCount || operations.AirOperations.OnboardCount != 0
         || operations.AirOperations.HasReservedCount || failure.Condition != 5 || failure.CauseCategory != "generic" || failure.CauseValue != 13
-        || equipment[0].Inventory != null || equipment[1].Inventory == null || equipment[1].Inventory.ResourceId != "missiles"
-        || equipment[1].Inventory.Quantity.ValueCase != ResourceValue.ValueOneofCase.Discrete || equipment[1].Inventory.Quantity.Discrete != 0)
+        || unit.CurrentLoadout != "empty" || unit.IsDestroyed || unit.Equipment[0].Inventory != null
+        || unit.Equipment[1].Inventory == null || unit.Equipment[1].Inventory.ResourceId != "missiles"
+        || unit.Equipment[1].Inventory.Quantity.ValueCase != ResourceValue.ValueOneofCase.Discrete
+        || unit.Equipment[1].Inventory.Quantity.Discrete != 0
+        || !unitType.HasPrimaryPlatformRole || unitType.PrimaryPlatformRole != 15
+        || !unitType.HasSubCategory || unitType.SubCategory != 6 || unitType.PlatformRoles.Count != 1 || unitType.PlatformRoles[0] != 15
+        || unitType.Loadouts.Count != 1 || unitType.Loadouts[0].Roles.Count != 1 || unitType.Loadouts[0].Roles[0] != 5)
     {
         throw new InvalidOperationException("cross_language_presence_or_value_mismatch");
     }
+
     Console.WriteLine("C# -> C++ domain codec -> C# conformance passed.");
     return 0;
 }
+
 return 2;
