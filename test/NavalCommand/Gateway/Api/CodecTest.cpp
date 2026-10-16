@@ -1,5 +1,6 @@
 #include <NavalCommand/Gateway/Api/Codec.h>
 #include <gtest/gtest.h>
+#include <utility>
 
 namespace NavalCommand::Gateway::Api
 {
@@ -99,7 +100,9 @@ namespace NavalCommand::Gateway::Api
 
 	TEST(Codec, EquipmentResourcesRemainOptionalAndZeroIsPresent)
 	{
-		Units::Api::Type fixedWing{{"aircraft/f-4"}, Classification::Api::SubCategory::FixedWingAircraft, {}, {}};
+		Units::Api::Type fixedWing{};
+		fixedWing.Id = {"aircraft/f-4"};
+		fixedWing.UnitSubCategory = Classification::Api::SubCategory::FixedWingAircraft;
 		const auto fixedWingWire = Encode(fixedWing);
 		ASSERT_TRUE(fixedWingWire.has_sub_category());
 		EXPECT_EQ(Decode(fixedWingWire).UnitSubCategory, Classification::Api::SubCategory::FixedWingAircraft);
@@ -119,14 +122,17 @@ namespace NavalCommand::Gateway::Api
 		EXPECT_EQ(decoded.CurrentLoadout.Value, "empty");
 		EXPECT_TRUE(decoded.IsDestroyed);
 
-		Units::Api::Type type{
-			{"ship"}, Classification::Api::SubCategory::SurfaceVessel,
-			{Classification::Api::Role::SurfaceWarfare},
-			{}};
-		type.Loadouts.push_back({
-			{"default"},
-			{{{"radar"}, {}}, {{"launcher"}, Equipment::Api::Fit::ResourceProvision{{"missiles"}, std::uint64_t{8}, std::uint64_t{0}}}},
-			{Classification::Api::Role::AntiSubmarineWarfare}});
+		Units::Api::Type type{};
+		type.Id = {"ship"};
+		type.UnitSubCategory = Classification::Api::SubCategory::SurfaceVessel;
+		type.PlatformRoles.push_back(Classification::Api::Role::SurfaceWarfare);
+		Equipment::Api::Loadout loadout{};
+		loadout.Id = {"default"};
+		loadout.Equipment = {
+			{{"radar"}, {}},
+			{{"launcher"}, Equipment::Api::Fit::ResourceProvision{{"missiles"}, std::uint64_t{8}, std::uint64_t{0}}}};
+		loadout.Roles.push_back(Classification::Api::Role::AntiSubmarineWarfare);
+		type.Loadouts.push_back(std::move(loadout));
 		auto decodedType = Decode(Encode(type));
 		EXPECT_EQ(decodedType.UnitSubCategory, Classification::Api::SubCategory::SurfaceVessel);
 		ASSERT_EQ(decodedType.PlatformRoles.size(), 1);
@@ -137,7 +143,8 @@ namespace NavalCommand::Gateway::Api
 		ASSERT_TRUE(decodedType.Loadouts[0].Equipment[1].Resource);
 		EXPECT_EQ(std::get<std::uint64_t>(decodedType.Loadouts[0].Equipment[1].Resource->InitialInventory), 0u);
 
-		Equipment::Api::Type equipment{{"radar"}, {}, {}};
+		Equipment::Api::Type equipment{};
+		equipment.Id = {"radar"};
 		equipment.Operations.push_back({Equipment::Api::Operation::TargetInput::NoTarget, Equipment::Api::Operation::Action::SetActive, {}});
 		equipment.Operations.push_back({Equipment::Api::Operation::TargetInput::Unit,
 										Equipment::Api::Operation::Action::Use,

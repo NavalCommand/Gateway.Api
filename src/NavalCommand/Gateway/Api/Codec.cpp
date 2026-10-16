@@ -555,6 +555,14 @@ namespace NavalCommand::Gateway::Api
 		Wire::UnitType result;
 		result.set_id(value.Id.Value);
 		result.set_sub_category(EncodeEnum(value.UnitSubCategory, static_cast<int>(Classification::Api::SubCategory::Other)));
+		if (value.DisplayName)
+		{
+			result.set_display_name(*value.DisplayName);
+		}
+		if (value.AlternativeDisplayName)
+		{
+			result.set_alternative_display_name(*value.AlternativeDisplayName);
+		}
 		for (const auto role : value.PlatformRoles)
 		{
 			result.add_platform_roles(EncodeEnum(role, static_cast<int>(Classification::Api::Role::Decoy)));
@@ -563,6 +571,10 @@ namespace NavalCommand::Gateway::Api
 		{
 			auto& encoded = *result.add_loadouts();
 			encoded.set_id(loadout.Id.Value);
+			if (loadout.DisplayName)
+			{
+				encoded.set_display_name(*loadout.DisplayName);
+			}
 			for (const auto role : loadout.Roles)
 			{
 				encoded.add_roles(EncodeEnum(role, static_cast<int>(Classification::Api::Role::Decoy)));
@@ -588,18 +600,29 @@ namespace NavalCommand::Gateway::Api
 		{
 			throw std::invalid_argument("missing_unit_sub_category");
 		}
-		Units::Api::Type result{
-			{value.id()},
-			DecodeEnum<Classification::Api::SubCategory>(value.sub_category(), static_cast<int>(Classification::Api::SubCategory::Other)),
-			{},
-			{}};
+		Units::Api::Type result{};
+		result.Id = {value.id()};
+		if (value.has_display_name())
+		{
+			result.DisplayName = value.display_name();
+		}
+		if (value.has_alternative_display_name())
+		{
+			result.AlternativeDisplayName = value.alternative_display_name();
+		}
+		result.UnitSubCategory = DecodeEnum<Classification::Api::SubCategory>(value.sub_category(), static_cast<int>(Classification::Api::SubCategory::Other));
 		for (const int role : value.platform_roles())
 		{
 			result.PlatformRoles.push_back(DecodeEnum<Classification::Api::Role>(role, static_cast<int>(Classification::Api::Role::Decoy)));
 		}
 		for (const auto& loadout : value.loadouts())
 		{
-			Equipment::Api::Loadout decoded{{loadout.id()}, {}, {}};
+			Equipment::Api::Loadout decoded{};
+			decoded.Id = {loadout.id()};
+			if (loadout.has_display_name())
+			{
+				decoded.DisplayName = loadout.display_name();
+			}
 			for (const int role : loadout.roles())
 			{
 				decoded.Roles.push_back(DecodeEnum<Classification::Api::Role>(role, static_cast<int>(Classification::Api::Role::Decoy)));
@@ -623,6 +646,14 @@ namespace NavalCommand::Gateway::Api
 	{
 		Wire::EquipmentType result;
 		result.set_id(value.Id.Value);
+		if (value.DisplayName)
+		{
+			result.set_display_name(*value.DisplayName);
+		}
+		if (value.AlternativeDisplayName)
+		{
+			result.set_alternative_display_name(*value.AlternativeDisplayName);
+		}
 		for (const auto& effect : value.Effects)
 		{
 			auto& encoded = *result.add_effects();
@@ -677,7 +708,16 @@ namespace NavalCommand::Gateway::Api
 
 	Equipment::Api::Type Decode(const Wire::EquipmentType& value)
 	{
-		Equipment::Api::Type result{{value.id()}, {}, {}};
+		Equipment::Api::Type result{};
+		result.Id = {value.id()};
+		if (value.has_display_name())
+		{
+			result.DisplayName = value.display_name();
+		}
+		if (value.has_alternative_display_name())
+		{
+			result.AlternativeDisplayName = value.alternative_display_name();
+		}
 		for (const auto& effect : value.effects())
 		{
 			Equipment::Api::Effect decoded{};

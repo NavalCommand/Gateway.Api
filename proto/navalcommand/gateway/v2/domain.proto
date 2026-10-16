@@ -124,12 +124,15 @@ message Loadout {
   string id = 1;
   repeated EquipmentFit equipment = 2;
   repeated int32 roles = 3;
+  optional string display_name = 4;
 }
 message UnitType {
   string id = 1;
   optional int32 sub_category = 2;
   repeated Loadout loadouts = 3;
   repeated int32 platform_roles = 4;
+  optional string display_name = 5;
+  optional string alternative_display_name = 6;
 }
 message Effect {
   message Sensing { int32 mode = 1; optional double nominal_range_meters = 2; }
@@ -157,6 +160,8 @@ message EquipmentType {
   string id = 1;
   repeated Effect effects = 2;
   repeated EquipmentOperation operations = 3;
+  optional string display_name = 4;
+  optional string alternative_display_name = 5;
 }
 message ResourceDefinition {
   string id = 1;
