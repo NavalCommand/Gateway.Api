@@ -128,7 +128,7 @@ if (args[0] == "write")
         Result = new Result { Unit = unit }
     });
 
-    var unitType = new UnitType { Id = "ship", SubCategory = 32 };
+    var unitType = new UnitType { Id = "ship", SubCategory = 32, PrimaryPlatformRole = 4 };
     unitType.PlatformRoles.Add(4);
     var loadout = new Loadout { Id = "standard" };
     loadout.Roles.Add(5);
@@ -181,6 +181,7 @@ if (args[0] == "read")
         || unit.Equipment[1].Inventory == null || unit.Equipment[1].Inventory.ResourceId != "missiles"
         || unit.Equipment[1].Inventory.Quantity.ValueCase != ResourceValue.ValueOneofCase.Discrete
         || unit.Equipment[1].Inventory.Quantity.Discrete != 0
+        || !unitType.HasPrimaryPlatformRole || unitType.PrimaryPlatformRole != 4
         || !unitType.HasSubCategory || unitType.SubCategory != 32 || unitType.PlatformRoles.Count != 1 || unitType.PlatformRoles[0] != 4
         || unitType.Loadouts.Count != 1 || unitType.Loadouts[0].Roles.Count != 1 || unitType.Loadouts[0].Roles[0] != 5)
     {

@@ -4,6 +4,27 @@
 
 namespace NavalCommand::Gateway::Api
 {
+	TEST(CodecTest, PrimaryPlatformRolePreservesPresenceAndRejectsInvalidValues)
+	{
+		Units::Api::Type type{};
+		type.Id = {"test"};
+		type.UnitSubCategory = Classification::Api::SubCategory::FixedWingAircraft;
+		EXPECT_FALSE(Decode(Encode(type)).PrimaryPlatformRole);
+		type.PlatformRoles = {Classification::Api::Role::AirSuperiority, Classification::Api::Role::ElectronicWarfare};
+		type.PrimaryPlatformRole = Classification::Api::Role::ElectronicWarfare;
+		EXPECT_EQ(Decode(Encode(type)).PrimaryPlatformRole, type.PrimaryPlatformRole);
+		// Zero is a valid role, and must retain presence rather than becoming absent.
+		type.PrimaryPlatformRole = Classification::Api::Role::AirSuperiority;
+		EXPECT_EQ(Decode(Encode(type)).PrimaryPlatformRole, type.PrimaryPlatformRole);
+		auto wire = Encode(type);
+		wire.set_primary_platform_role(999);
+		EXPECT_THROW(Decode(wire), std::invalid_argument);
+		wire.set_primary_platform_role(static_cast<int>(Classification::Api::Role::Transport));
+		EXPECT_THROW(Decode(wire), std::invalid_argument);
+		type.PrimaryPlatformRole = Classification::Api::Role::Transport;
+		EXPECT_THROW(Encode(type), std::invalid_argument);
+	}
+
 	TEST(Codec, UnknownAndKnownFalseRemainDistinct)
 	{
 		Observations::Api::Instance source{};
@@ -128,9 +149,7 @@ namespace NavalCommand::Gateway::Api
 		type.PlatformRoles.push_back(Classification::Api::Role::SurfaceWarfare);
 		Equipment::Api::Loadout loadout{};
 		loadout.Id = {"default"};
-		loadout.Equipment = {
-			{{"radar"}, {}},
-			{{"launcher"}, Equipment::Api::Fit::ResourceProvision{{"missiles"}, std::uint64_t{8}, std::uint64_t{0}}}};
+		loadout.Equipment = {{{"radar"}, {}}, {{"launcher"}, Equipment::Api::Fit::ResourceProvision{{"missiles"}, std::uint64_t{8}, std::uint64_t{0}}}};
 		loadout.Roles.push_back(Classification::Api::Role::AntiSubmarineWarfare);
 		type.Loadouts.push_back(std::move(loadout));
 		auto decodedType = Decode(Encode(type));

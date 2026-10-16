@@ -1,4 +1,5 @@
 #include <NavalCommand/Gateway/Api/Codec.h>
+#include <algorithm>
 #include <stdexcept>
 
 namespace NavalCommand::Gateway::Api
@@ -278,18 +279,16 @@ namespace NavalCommand::Gateway::Api
 		}
 		if (value.has_sub_category())
 		{
-			result.Type = decltype(result.Type)::Known(
-				DecodeEnum<Classification::Api::SubCategory>(value.sub_category(), static_cast<int>(Classification::Api::SubCategory::Other)));
+			result.Type =
+				decltype(result.Type)::Known(DecodeEnum<Classification::Api::SubCategory>(value.sub_category(), static_cast<int>(Classification::Api::SubCategory::Other)));
 		}
 		else if (value.has_category())
 		{
-			result.Type = decltype(result.Type)::Known(
-				DecodeEnum<Classification::Api::Category>(value.category(), static_cast<int>(Classification::Api::Category::Other)));
+			result.Type = decltype(result.Type)::Known(DecodeEnum<Classification::Api::Category>(value.category(), static_cast<int>(Classification::Api::Category::Other)));
 		}
 		else if (value.has_dimension())
 		{
-			result.Type = decltype(result.Type)::Known(
-				DecodeEnum<Classification::Api::Dimension>(value.dimension(), static_cast<int>(Classification::Api::Dimension::Other)));
+			result.Type = decltype(result.Type)::Known(DecodeEnum<Classification::Api::Dimension>(value.dimension(), static_cast<int>(Classification::Api::Dimension::Other)));
 		}
 		if (value.has_current_loadout())
 		{
@@ -563,6 +562,14 @@ namespace NavalCommand::Gateway::Api
 		{
 			result.set_alternative_display_name(*value.AlternativeDisplayName);
 		}
+		if (value.PrimaryPlatformRole)
+		{
+			if (std::ranges::find(value.PlatformRoles, *value.PrimaryPlatformRole) == value.PlatformRoles.end())
+			{
+				throw std::invalid_argument("primary_platform_role_not_in_platform_roles");
+			}
+			result.set_primary_platform_role(EncodeEnum(*value.PrimaryPlatformRole, static_cast<int>(Classification::Api::Role::Decoy)));
+		}
 		for (const auto role : value.PlatformRoles)
 		{
 			result.add_platform_roles(EncodeEnum(role, static_cast<int>(Classification::Api::Role::Decoy)));
@@ -614,6 +621,14 @@ namespace NavalCommand::Gateway::Api
 		for (const int role : value.platform_roles())
 		{
 			result.PlatformRoles.push_back(DecodeEnum<Classification::Api::Role>(role, static_cast<int>(Classification::Api::Role::Decoy)));
+		}
+		if (value.has_primary_platform_role())
+		{
+			result.PrimaryPlatformRole = DecodeEnum<Classification::Api::Role>(value.primary_platform_role(), static_cast<int>(Classification::Api::Role::Decoy));
+			if (std::ranges::find(result.PlatformRoles, *result.PrimaryPlatformRole) == result.PlatformRoles.end())
+			{
+				throw std::invalid_argument("primary_platform_role_not_in_platform_roles");
+			}
 		}
 		for (const auto& loadout : value.loadouts())
 		{

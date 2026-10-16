@@ -133,6 +133,7 @@ message UnitType {
   repeated int32 platform_roles = 4;
   optional string display_name = 5;
   optional string alternative_display_name = 6;
+  optional int32 primary_platform_role = 7;
 }
 message Effect {
   message Sensing { int32 mode = 1; optional double nominal_range_meters = 2; }
