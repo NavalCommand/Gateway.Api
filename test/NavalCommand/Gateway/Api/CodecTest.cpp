@@ -23,6 +23,10 @@ namespace NavalCommand::Gateway::Api
 		EXPECT_THROW(Decode(wire), std::invalid_argument);
 		type.PrimaryPlatformRole = Classification::Api::Role::Transport;
 		EXPECT_THROW(Encode(type), std::invalid_argument);
+		type.UnitSubCategory = Classification::Api::SubCategory::Cruiser;
+		type.PrimaryPlatformRole = Classification::Api::Role::GuidedMissile;
+		type.PlatformRoles.push_back(*type.PrimaryPlatformRole);
+		EXPECT_EQ(Decode(Encode(type)).PrimaryPlatformRole, type.PrimaryPlatformRole);
 	}
 
 	TEST(Codec, UnknownAndKnownFalseRemainDistinct)

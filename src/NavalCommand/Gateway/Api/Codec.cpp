@@ -568,11 +568,11 @@ namespace NavalCommand::Gateway::Api
 			{
 				throw std::invalid_argument("primary_platform_role_not_in_platform_roles");
 			}
-			result.set_primary_platform_role(EncodeEnum(*value.PrimaryPlatformRole, static_cast<int>(Classification::Api::Role::Decoy)));
+			result.set_primary_platform_role(EncodeEnum(*value.PrimaryPlatformRole, static_cast<int>(Classification::Api::Role::GuidedMissile)));
 		}
 		for (const auto role : value.PlatformRoles)
 		{
-			result.add_platform_roles(EncodeEnum(role, static_cast<int>(Classification::Api::Role::Decoy)));
+			result.add_platform_roles(EncodeEnum(role, static_cast<int>(Classification::Api::Role::GuidedMissile)));
 		}
 		for (const auto& loadout : value.Loadouts)
 		{
@@ -584,7 +584,7 @@ namespace NavalCommand::Gateway::Api
 			}
 			for (const auto role : loadout.Roles)
 			{
-				encoded.add_roles(EncodeEnum(role, static_cast<int>(Classification::Api::Role::Decoy)));
+				encoded.add_roles(EncodeEnum(role, static_cast<int>(Classification::Api::Role::GuidedMissile)));
 			}
 			for (const auto& fit : loadout.Equipment)
 			{
@@ -620,11 +620,11 @@ namespace NavalCommand::Gateway::Api
 		result.UnitSubCategory = DecodeEnum<Classification::Api::SubCategory>(value.sub_category(), static_cast<int>(Classification::Api::SubCategory::Other));
 		for (const int role : value.platform_roles())
 		{
-			result.PlatformRoles.push_back(DecodeEnum<Classification::Api::Role>(role, static_cast<int>(Classification::Api::Role::Decoy)));
+			result.PlatformRoles.push_back(DecodeEnum<Classification::Api::Role>(role, static_cast<int>(Classification::Api::Role::GuidedMissile)));
 		}
 		if (value.has_primary_platform_role())
 		{
-			result.PrimaryPlatformRole = DecodeEnum<Classification::Api::Role>(value.primary_platform_role(), static_cast<int>(Classification::Api::Role::Decoy));
+			result.PrimaryPlatformRole = DecodeEnum<Classification::Api::Role>(value.primary_platform_role(), static_cast<int>(Classification::Api::Role::GuidedMissile));
 			if (std::ranges::find(result.PlatformRoles, *result.PrimaryPlatformRole) == result.PlatformRoles.end())
 			{
 				throw std::invalid_argument("primary_platform_role_not_in_platform_roles");
@@ -640,7 +640,7 @@ namespace NavalCommand::Gateway::Api
 			}
 			for (const int role : loadout.roles())
 			{
-				decoded.Roles.push_back(DecodeEnum<Classification::Api::Role>(role, static_cast<int>(Classification::Api::Role::Decoy)));
+				decoded.Roles.push_back(DecodeEnum<Classification::Api::Role>(role, static_cast<int>(Classification::Api::Role::GuidedMissile)));
 			}
 			for (const auto& fit : loadout.equipment())
 			{
